@@ -1,0 +1,56 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>飞行响应回放 · 模拟遥控器</title>
+<style>body{margin:0;background:#15262d;color:#d8e6de;font:13px system-ui}header{padding:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}button{padding:8px;color:inherit;background:#30494a;border:1px solid #608077;border-radius:4px}#viewport{width:100%;height:calc(100vh - 115px)}#result{display:block;padding:12px;white-space:pre-wrap;font-variant-numeric:tabular-nums}.stick{display:none}</style>
+<header>测试专用：模拟 Gamepad → 通道映射 → 飞行输入 → 物理 → 地面机位<button id="roll">横滚 360°</button><button id="pitch">俯仰 360°</button><button id="inverted">俯仰至倒飞</button></header><div id="viewport"></div><output id="result">载入模型</output><div id="left-stick" class="stick"><i class="stick-dot"></i></div><div id="right-stick" class="stick"><i class="stick-dot"></i></div>
+<script type="module">
+import { FlightWorld } from '/src/scene/world.ts';
+import { FlightControls } from '/src/input.ts';
+import { GamepadController, defaultProfile, channels } from '/src/gamepad.ts';
+import { HelicopterSimulation, defaultInput, FixedStepClock } from '/src/physics/simulator.ts';
+import { deg, rotate, vec } from '/src/physics/math.ts';
+const world = new FlightWorld(document.querySelector('#viewport'));
+await Promise.all([world.loadModel(), world.loadField()]);
+const sim = new HelicopterSimulation(), input = defaultInput(), clock = new FixedStepClock();
+const pad = {id:'测试输入，无真实硬件', index:0, connected:true, mapping:'', axes:[0,0,0,0], buttons:[]};
+const controller = new GamepadController(() => [pad], () => {}), profile = defaultProfile(pad);
+channels.forEach((c, axis) => Object.assign(profile.channels[c], {axis, inverted:false, deadzone:0}));
+controller.poll(); controller.enable(pad, profile);
+const controls = new FlightControls(input, () => {}, () => {}, () => controller.output);
+const previous = {position:{...sim.state.position},attitude:{...sim.state.attitude}};
+let running = false, channel = 'roll', finishAngle = 352, rotation = 0, trim = 0, inverted = false, brakeAt = Infinity, last = performance.now();
+let frames = 0, wallStart = 0, maxRate = 0;
+function start(axis, angle) {
+  channel = axis; finishAngle = angle - 8;
+  trim = sim.hover(); sim.state.position.y = 6; input.motor = true; input.assist = false;
+  Object.assign(previous.position, sim.state.position); Object.assign(previous.attitude, sim.state.attitude);
+  rotation = 0; inverted = false; brakeAt = Infinity; maxRate = 0; frames = 0; wallStart = performance.now();
+  clock.reset(); running = true; last = performance.now();
+}
+document.querySelector('#roll').onclick = () => start('roll', 360);
+document.querySelector('#pitch').onclick = () => start('pitch', 360);
+document.querySelector('#inverted').onclick = () => start('pitch', 180);
+function frame(now) {
+  const elapsed = (now - last) / 1000; last = now; let alpha = 1;
+  if (running) {
+    const up = rotate(sim.state.attitude, vec(0, 1, 0));
+    const command = rotation < finishAngle ? 1 : 0;
+    if (!command && brakeAt === Infinity) brakeAt = sim.state.time;
+    pad.axes = [channel === 'roll' ? command : 0, channel === 'pitch' ? command : 0, 0, trim * up.y];
+    controller.poll();
+    alpha = clock.advance(elapsed, dt => {
+      controls.update(dt);
+      Object.assign(previous.position, sim.state.position); Object.assign(previous.attitude, sim.state.attitude);
+      sim.step(dt, input);
+      const rate = deg(channel === 'roll' ? sim.state.rates.x : -sim.state.rates.z);
+      rotation += rate * dt; maxRate = Math.max(maxRate, rate);
+      if (rotate(sim.state.attitude, vec(0, 1, 0)).y < -0.95) inverted = true;
+    });
+    frames++;
+    if (sim.state.time > brakeAt + 0.3 || sim.state.time > 2 || sim.state.crashed) running = false;
+  }
+  world.render(sim.state, previous, running ? alpha : 1);
+  const pos = world.camera.position;
+  document.querySelector('#result').textContent = `${running ? '回放中' : '完成 / 待开始'} · ${channel} · 累积 ${rotation.toFixed(1)}° · ${inverted ? '已经过倒飞' : '未经过倒飞'} · ${sim.state.crashed ? '坠机' : '未坠机'}\n机位 ${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)} m · 高度 ${sim.state.position.y.toFixed(2)} m · 峰值 ${maxRate.toFixed(1)}°/s · ${running ? Math.round(frames * 1000 / (now - wallStart)) : '—'} FPS · ${world.renderer.info.render.calls} 绘制调用`;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></html>

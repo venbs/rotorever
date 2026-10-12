@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>遥控器刷新恢复验证</title>
+<body><div id="app"></div>
+<aside style="position:fixed;left:12px;top:12px;z-index:50;max-width:320px;padding:12px;background:#111d;color:white;font:12px system-ui">
+  <p>模拟遥控器测试 · 独立 sessionStorage，不修改真实配置</p>
+  <button id="seed">写入旧版已保存配置并刷新</button>
+  <button id="arm-high">模拟解锁</button><button id="arm-low">模拟锁定</button>
+  <p>已保存映射应输出：横滚 50%，俯仰 25%，偏航 −30%，总距 2.6°。初始开关锁定。</p>
+</aside>
+<script type="module">
+import { defaultProfile, deviceKey } from '/src/gamepad.ts';
+const device = {id:'Reload test USB radio',index:3,connected:true,mapping:'',axes:[.25,-.5,.26,-.3,-1],buttons:[]};
+const storage = {getItem:key=>sessionStorage.getItem('heli-restore-test:'+key),setItem:(key,value)=>sessionStorage.setItem('heli-restore-test:'+key,value)};
+Object.defineProperty(window,'localStorage',{value:storage});
+Object.defineProperty(navigator,'getGamepads',{value:()=>[null,null,null,device]});
+document.querySelector('#seed').onclick=()=>{
+  const profile=defaultProfile(device);
+  Object.assign(profile.channels.roll,{axis:1,inverted:true,deadzone:0});
+  Object.assign(profile.channels.pitch,{axis:0,deadzone:0});
+  profile.channels.yaw.deadzone=0;
+  Object.assign(profile.channels.collective,{min:-.8,center:.1,max:.9});
+  profile.arm={source:'axis',index:4,inverted:false};
+  storage.setItem('heli-lab.gamepad.v1:'+encodeURIComponent(deviceKey(device)),JSON.stringify(profile));
+  sessionStorage.removeItem('heli-restore-test:heli-lab.gamepad.preferred.v1');
+  location.reload();
+};
+document.querySelector('#arm-high').onclick=()=>device.axes[4]=1;
+document.querySelector('#arm-low').onclick=()=>device.axes[4]=-1;
+await import('/src/main.ts');
+</script></body></html>

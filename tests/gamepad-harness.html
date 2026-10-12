@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gamepad 校准 · 模拟输入测试</title>
+<body><p style="padding:20px">仅用于测试界面的模拟设备；不读取真实遥控器，也不写入浏览器配置。</p><button id="open" style="margin:20px">重新打开设置</button><button id="arm-high">开关高位</button><button id="arm-low">开关低位</button><output id="flight-output"></output><output id="result"></output><div id="left-stick" hidden><i class="stick-dot"></i></div><div id="right-stick" hidden><i class="stick-dot"></i></div>
+<script type="module">
+import '/src/style.css';
+import { GamepadController, ProfileStore } from '/src/gamepad.ts';
+import { GamepadPanel } from '/src/gamepad-panel.ts';
+import { FlightControls } from '/src/input.ts';
+import { HelicopterSimulation, defaultInput, FixedStepClock } from '/src/physics/simulator.ts';
+const device = { id: '模拟 USB 遥控器 · 测试专用', index: 0, connected: true, mapping: '', axes: [0.1, -0.1, 0.2, 0.5, -1], buttons: [{value: 0, pressed: false}] };
+const values = new Map();
+const controller = new GamepadController(() => device.connected ? [device] : [], message => { document.querySelector('#result').textContent = message; });
+const store = new ProfileStore({getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value)});
+const panel = new GamepadPanel(controller, store, () => {}, () => {});
+const controls = document.createElement('div');
+controls.style.cssText = 'border:1px dashed #6f896a;padding:10px;display:flex;gap:8px;flex-wrap:wrap;font-size:12px';
+controls.innerHTML = '<span style="width:100%">测试夹具 · 模拟输入</span><button id="test-center">模拟中位</button><button id="test-min">模拟负端</button><button id="test-max">模拟正端</button><button id="test-disconnect">模拟断开 / 重连</button>';
+panel.dialog.querySelector('.gp-intro').after(controls);
+document.querySelector('#test-center').onclick = () => { device.axes = [0.1, -0.1, 0.2, 0.5, -1]; };
+document.querySelector('#test-min').onclick = () => { device.axes = [-0.8, -0.7, -0.6, 0, -1]; };
+document.querySelector('#test-max').onclick = () => { device.axes = [0.9, 0.8, 0.95, 1, -1]; };
+document.querySelector('#test-disconnect').onclick = () => { device.connected = !device.connected; };
+document.querySelector('#open').onclick = () => panel.open();
+const sim = new HelicopterSimulation(), input = defaultInput(), clock = new FixedStepClock();
+const flightControls = new FlightControls(input, () => {}, () => {}, () => controller.output);
+document.querySelector('#arm-high').onclick = () => { device.axes = [0, 0, 0, 0, 1]; device.buttons = [{value:1,pressed:true}]; };
+document.querySelector('#arm-low').onclick = () => { device.axes[4] = -1; device.buttons = [{value:0,pressed:false}]; };
+let last = performance.now();
+function frame(now) {
+  controller.poll(); panel.update(now);
+  clock.advance((now - last) / 1000, dt => {
+    flightControls.update(dt);
+    if (panel.dialog.open) { input.motor = false; input.collective = 0; input.roll = input.pitch = input.yaw = 0; }
+    sim.step(dt, input);
+  }); last = now;
+  document.querySelector('#flight-output').textContent = `Motor: ${input.motor ? 'ON' : 'OFF'} · RPM: ${Math.round(sim.state.rotorSpeed * 30 / Math.PI)} · Sim: ${sim.state.time.toFixed(1)} s`;
+  requestAnimationFrame(frame);
+}
+controller.poll(); panel.open(); requestAnimationFrame(frame);
+</script></body></html>

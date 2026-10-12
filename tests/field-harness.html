@@ -1,0 +1,47 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>全景地面与投影验证</title>
+<style>body{margin:0;color:#ebf3ff;background:#111a25;font:13px system-ui}header{padding:12px;display:flex;gap:8px;flex-wrap:wrap}button{padding:8px;color:inherit;background:#243144;border:1px solid #617085}#viewport{height:calc(100vh - 130px)}output{display:block;padding:10px;white-space:pre-wrap}</style>
+<header><button id="ground">地面</button><button id="hover">2 米悬停</button><button id="high">8 米悬停</button><button id="bank">倾斜机体</button><button id="occlude">地下遮挡</button><button id="sun">朝向太阳</button><button id="scan">环视接缝</button><button id="save">保存场景截图</button></header><div id="viewport"></div><output id="result">加载全景</output>
+<script type="module">
+import { FlightWorld } from '/src/scene/world.ts';
+import { HelicopterSimulation } from '/src/physics/simulator.ts';
+import { field, groundProjection } from '/src/field.ts';
+import { axisAngle, vec } from '/src/physics/math.ts';
+import { Vector3 } from 'three';
+const world = new FlightWorld(document.querySelector('#viewport'));
+await Promise.all([world.loadField(), world.loadModel()]);
+const state = new HelicopterSimulation().state;
+state.rotorSpeed=220;
+let mode='地面', scan=false, sun=false, frames=0, start=performance.now();
+const preset=(label,y,bank=0)=>{mode=label;state.position={x:0,y,z:0};state.attitude=axisAngle(vec(1,0,0),bank);scan=false;sun=false;};
+document.querySelector('#ground').onclick=()=>preset('地面',.142);
+document.querySelector('#hover').onclick=()=>preset('2 米悬停',2);
+document.querySelector('#high').onclick=()=>preset('8 米悬停',8);
+document.querySelector('#bank').onclick=()=>preset('倾斜机体',2,Math.PI*.4);
+document.querySelector('#occlude').onclick=()=>preset('地下遮挡',-2);
+document.querySelector('#sun').onclick=()=>{sun=true;scan=false;mode='朝向太阳';};
+document.querySelector('#scan').onclick=()=>{scan=!scan;sun=false;mode='环视接缝';};
+document.querySelector('#save').onclick=()=>{
+ world.renderer.render(world.scene,world.camera);
+ world.renderer.domElement.toBlob(blob=>{
+  if(!blob)return;
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='mva-almere-preview.png';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+ },'image/png');
+};
+function frame(now){
+ state.rotorPhase=now*.22;
+ world.render(state,state,1);
+ if(scan||sun){
+   const eye=field.pilot;
+   const t=now/4000;
+   world.camera.lookAt(sun?new Vector3(eye.x-field.lightRay.x,eye.y-field.lightRay.y,eye.z-field.lightRay.z):new Vector3(eye.x+10*Math.cos(t),eye.y+7*Math.sin(t*.43),eye.z+10*Math.sin(t)));
+   world.renderer.render(world.scene,world.camera);
+ }
+ frames++;
+ const hit=groundProjection(state.position);
+ document.querySelector('#result').textContent=`${mode} · 全景 ${world.field.quality}\n光线与地面交点 ${hit.x.toFixed(3)}, ${hit.y.toFixed(3)}, ${hit.z.toFixed(3)} m · ${world.renderer.info.render.calls} 绘制调用 · ${Math.round(frames*1000/(now-start))} FPS\n眼高 ${field.pilot.y} m · 飞行、遮挡和阴影地面 y=${field.groundY}`;
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></html>
