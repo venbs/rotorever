@@ -21,7 +21,20 @@ npm run preview
 
 仓库包含运行源码、测试、分析脚本和压缩后的场景素材；本地 `analysis/` 分析结果、`backups/` 录像备份、依赖与构建产物不提交。分析脚本需要自行提供参考录像。
 
-构建产物位于 `dist/`，可由静态服务器运行。运行时无需远程字体、图片或云服务；没有部署到外网。
+构建产物位于 `dist/`，可由静态服务器运行。运行时无需远程字体、图片或云服务。
+
+### GitHub Pages
+
+部署工作流位于 `.github/workflows/pages.yml`：推送 `main` 或手动触发后，安装依赖、运行测试并构建，再发布 `dist/`。仓库的 Settings → Pages → Source 需设为 GitHub Actions。
+
+项目站点路径为 `/rotorever/`。工作流使用 GitHub Pages 提供的路径构建，模型和天空盒也使用同一个资源前缀。本地验证该部署构建：
+
+```sh
+npm run build -- --base=/rotorever/
+npm run preview -- --base=/rotorever/
+```
+
+打开预览地址下的 `/rotorever/`。在线站点使用 HTTPS，遥控器按浏览器的 Gamepad API 权限与交互要求连接；本地页面与在线页面分别保存设置。
 
 ## 界面与操作
 

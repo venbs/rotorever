@@ -56,7 +56,7 @@ export class PhotoField {
   async load() {
     const loadTier = async (tier: 'preview' | 'standard') => {
       const texture = await new THREE.CubeTextureLoader().loadAsync(
-        faces.map(face => `/environments/mva-almere/${tier}/${face}.webp`),
+        faces.map(face => `${import.meta.env.BASE_URL}environments/mva-almere/${tier}/${face}.webp`),
       );
       texture.name = `MVA-Almere ${tier}`;
       // sRGB background is displayed without filmic re-tonemapping the photo.

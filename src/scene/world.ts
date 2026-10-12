@@ -102,7 +102,7 @@ export class FlightWorld {
   }
   async loadModel() {
     try {
-      const gltf = await new GLTFLoader().loadAsync('/models/tron550.glb');
+      const gltf = await new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/tron550.glb`);
       gltf.scene.traverse(o => {
         if (o instanceof THREE.Mesh) {
           o.castShadow = false; o.receiveShadow = false;
