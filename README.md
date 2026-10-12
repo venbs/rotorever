@@ -1,4 +1,4 @@
-# Heli Lab
+# Rotorever
 
 Web3D 遥控直升机物理原型。Three.js 负责显示，独立 TypeScript 模块负责动力学。没有移植 HELI-X 核心代码或机型参数表。外观模型来自用户指定的 RotorflightCN 项目，具体来源记录见下文。
 
