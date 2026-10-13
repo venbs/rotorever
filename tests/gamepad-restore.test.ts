@@ -62,33 +62,76 @@ test('last saved device wins; another saved radio cannot take over while it is a
   assert.equal(controller.activeName, b.id);
   // An unexpected disconnect stops the session instead of silently switching radios.
   devices = [a]; controller.poll(); assert.equal(controller.active, false);
-  devices = [a, b]; controller.poll(); assert.equal(controller.active, false);
+  devices = [a, b]; controller.poll(); assert.equal(controller.activeName, b.id);
   const refreshed = new GamepadController(() => devices, () => {}, store);
   refreshed.poll(); assert.equal(refreshed.activeName, b.id);
 });
 
-test('manual disable survives refresh and saving/enabling restores automatic startup', () => {
+test('manual keyboard selection survives refresh and choosing a radio restores automatic startup without saving', () => {
   const { store } = storage(), pad = radio(), profile = defaultProfile(pad);
   store.save(pad, profile);
   const make = () => new GamepadController(() => [pad], () => {}, store);
   const first = make(); first.poll(); first.disable(); first.poll(); assert.equal(first.active, false);
   const second = make(); second.poll(); assert.equal(second.active, false);
-  second.enable(pad, profile); store.save(pad, profile);
+  second.enable(pad, profile);
   const third = make(); third.poll(); assert.equal(third.active, true);
 });
 
-test('unknown, corrupt, ambiguous or unreadable profiles never auto-enable default mappings', () => {
+test('a first-time HID radio auto-connects on exposure with AETR and CH6, without opening settings', () => {
+  const { store, reads } = storage();
+  const pad = radio({axes: [.5, -.5, .8, -1, 1, -1]});
+  let devices: PadReading[] = [];
+  const controller = new GamepadController(() => devices, () => assert.fail('unexpected disconnect'), store);
+  controller.poll(); assert.equal(controller.active, false);
+  devices = [pad]; controller.poll();
+  assert.equal(controller.active, true);
+  assert.deepEqual(controller.output, mapPad(pad, defaultProfile(pad)));
+  assert.equal(controller.output.collective, .8);
+  assert.equal(controller.output.motor, false, 'CH5 must not arm the motor');
+  const firstReads = reads();
+  pad.axes = [-.5, .5, -.8, 1, -1, 1];
+  for (let i = 0; i < 120; i++) controller.poll();
+  assert.equal(controller.output.collective, -.8);
+  assert.equal(controller.output.motor, true);
+  assert.equal(reads(), firstReads);
+  const refreshed = new GamepadController(() => devices, () => {}, store);
+  refreshed.poll(); assert.deepEqual(refreshed.output, controller.output);
+});
+
+test('new or damaged storage does not prevent a radio from flying with defaults', () => {
   const pad = radio(), { store, values } = storage();
-  const run = (devices = [pad], source = store) => {
-    const controller = new GamepadController(() => devices, () => {}, source);
+  values.set(`heli-lab.gamepad.v1:${encodeURIComponent(deviceKey(pad))}`, '{broken');
+  const blocked = new ProfileStore({ getItem() { throw Error('blocked'); }, setItem() { throw Error('blocked'); } });
+  for (const source of [store, blocked, new ProfileStore(null)]) {
+    const controller = new GamepadController(() => [pad], () => {}, source);
+    controller.poll(); assert.equal(controller.active, true);
+    assert.deepEqual(controller.output, mapPad(pad, defaultProfile(pad)));
+  }
+});
+
+test('ambiguous radios need selection, and button-only devices do not take flight control', () => {
+  const pad = radio(), { store } = storage();
+  for (const devices of [[pad, radio({ index: 1 })], [radio({axes: [], buttons:[{value:0, pressed:false}]})]]) {
+    const controller = new GamepadController(() => devices, () => {}, store);
     controller.poll(); assert.equal(controller.active, false); assert.deepEqual(controller.output, {});
-  };
-  run();
-  values.set(`heli-lab.gamepad.v1:${encodeURIComponent(deviceKey(pad))}`, '{broken'); run();
-  store.save(pad, defaultProfile(pad));
-  run([pad, radio({ index: 1 })]);
-  run([radio({ id: 'Unknown radio' })]);
-  run([pad], new ProfileStore({ getItem() { throw Error('blocked'); }, setItem() {} }));
+  }
+});
+
+test('disconnect closes motor output and reconnect restores the same tune at a new index', () => {
+  const { store } = storage(), pad = radio({axes:[.5, 0, .8, 0, 0, 1]}), profile = defaultProfile(pad);
+  profile.channels.roll.inverted = true;
+  store.save(pad, profile);
+  let devices = [pad], losses = 0;
+  const controller = new GamepadController(() => devices, () => { losses++; }, store);
+  controller.poll(); assert.equal(controller.output.motor, true);
+  devices = []; controller.poll(); controller.poll();
+  assert.deepEqual(controller.output, {}); assert.equal(losses, 1);
+  devices = [radio({id:'Other device', axes:[0,0,0,0,0,1]})]; controller.poll(); assert.equal(controller.active, false);
+  const returned = {...pad, index:4, axes:[.5, 0, .8, 0, 0, -1]};
+  devices = [returned]; controller.poll();
+  assert.equal(controller.activeIndex, 4); assert.equal(controller.output.motor, false);
+  assert.deepEqual(controller.profileFor(returned), profile);
+  assert.equal(losses, 1);
 });
 
 test('invalid initial samples wait for a valid reading without asking for another save', () => {

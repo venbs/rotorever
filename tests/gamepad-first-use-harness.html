@@ -1,0 +1,23 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>首次接入遥控器验证</title>
+<body><div id="app"></div>
+<aside style="position:fixed;left:12px;top:12px;z-index:50;max-width:280px;padding:12px;background:#111e;color:white;font:12px system-ui">
+  <p>首次接入测试 · 空白配置，不读取或写入真实配置</p>
+  <button id="connect">插入遥控器</button><button id="disconnect">拔出遥控器</button>
+  <button id="move">打杆</button><button id="center">回中</button>
+  <button id="arm-high">CH6 高位</button><button id="arm-low">CH6 低位</button>
+  <p>打杆后预期：横滚 50% / 俯仰 −50% / 偏航 100% / 总距 6°。</p>
+</aside>
+<script type="module">
+const device = {id:'First-use HID radio',index:0,connected:true,mapping:'',axes:[0,0,0,0,-1,-1,...Array(10).fill(0)],buttons:[]};
+let connected = false;
+const values = new Map();
+Object.defineProperty(window,'localStorage',{value:{getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)}});
+Object.defineProperty(navigator,'getGamepads',{value:()=>connected?[device]:[]});
+document.querySelector('#connect').onclick=()=>{connected=true;device.index=2;};
+document.querySelector('#disconnect').onclick=()=>{connected=false;};
+document.querySelector('#move').onclick=()=>{device.axes.splice(0,4,.5125,-.5125,.5,1);};
+document.querySelector('#center').onclick=()=>{device.axes.splice(0,4,0,0,0,0);};
+document.querySelector('#arm-high').onclick=()=>{device.axes[5]=1;};
+document.querySelector('#arm-low').onclick=()=>{device.axes[5]=-1;};
+await import('/src/main.ts');
+</script></body></html>

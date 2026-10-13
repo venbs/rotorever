@@ -18,127 +18,142 @@ export class GamepadPanel {
     this.dialog = document.createElement('dialog');
     this.dialog.id = 'gamepad-dialog'; this.dialog.setAttribute('aria-labelledby', 'gamepad-title');
     this.dialog.innerHTML = `
-      <div class="dialog-head"><span class="eyebrow">CONTROLLER SETUP</span><button id="gp-close" aria-label="关闭遥控器设置">×</button></div>
-      <h2 id="gamepad-title">遥控器设置</h2><p class="gp-intro">默认 AETR 通道顺序。设置期间电机关闭，物理继续运行。</p>
-      <label class="gp-device-label" for="gp-device">输入设备</label><div class="gp-device-row"><select id="gp-device"><option value="">等待设备连接</option></select><button id="gp-refresh">刷新</button></div>
-      <p id="gp-device-info" class="gp-device-info"></p>
-      <div id="gp-empty" class="gp-empty"><strong>尚未检测到遥控器或手柄</strong><p>将设备连接到电脑，点击此页面，再拨动摇杆或按一下手柄按钮。遥控器需工作在 USB 摇杆 / 游戏控制器模式。</p><p>部分浏览器需在设备上操作一次后才会显示。如果仍无设备，可在 Chrome 或 Edge 中打开此本地地址。</p></div>
-      <div id="gp-content" hidden>
-        <div class="gp-section-head"><h3>实时通道</h3><span>移动摇杆，观察对应通道</span></div><div id="gp-raw" class="gp-raw"></div><div id="gp-buttons" class="gp-buttons"></div>
-        <div class="gp-section-head"><h3>通道分配</h3><button id="gp-defaults" class="link-button">恢复默认</button></div>
-        <p class="gp-directions">CH1 副翼 · CH2 升降 · CH3 总距 · CH4 方向。拨杆检查方向，必要时反向。</p>
-        <div class="gp-table-head"><span>功能</span><span>输入通道</span><span>反向</span><span>死区</span><span>校准后输出</span></div>
-        <div id="gp-mappings"></div>
-        <div class="gp-arming"><div class="gp-section-head"><h3>油门解锁</h3><output id="gp-arm-state">未分配</output></div><div class="gp-arm-fields"><label for="gp-arm-source">电机开关通道<select id="gp-arm-source"></select></label><label class="gp-arm-invert"><input id="gp-arm-invert" type="checkbox" />反向</label></div><p>高位启动、低位关闭。可选择独立轴通道或按钮；未分配时使用空格启停。</p></div>
-        <div class="gp-calibration"><div class="gp-section-head"><h3>中位与行程校准</h3><span id="gp-cal-stage">未开始</span></div>
-          <p id="gp-cal-hint">先将方向杆回中，总距杆也放到行程中间，然后记录中位。接着把已分配的各摇杆移动到正负两端。</p>
-          <div class="gp-cal-actions"><button id="gp-center">1. 记录中位并采集行程</button><button id="gp-finish" disabled>2. 完成校准</button><button id="gp-cancel-cal" hidden>取消校准</button></div>
+      <header class="dialog-head gp-head"><div><span class="eyebrow">CONTROLLER</span><h2 id="gamepad-title">遥控器设置</h2></div><button id="gp-close" aria-label="关闭遥控器设置">×</button></header>
+      <div class="gp-body">
+        <label class="gp-device-label" for="gp-device">输入设备</label><select id="gp-device"><option value="">等待设备连接</option></select>
+        <p id="gp-connection" class="gp-intro"></p>
+        <div id="gp-empty" class="gp-empty"><strong>连接 USB 遥控器，即可开始</strong><p>选择 HID / 游戏控制器模式，点击页面并拨动摇杆。识别后自动使用 AETR，无需保存即可飞行。</p></div>
+        <div id="gp-content" hidden>
+          <div class="gp-table-head"><span>功能</span><span>通道</span><span>反向</span><span>输出</span></div>
+          <div id="gp-mappings"></div>
+          <div class="gp-arming">
+            <div class="gp-section-head"><h3>电机解锁</h3><output id="gp-arm-state">未分配</output></div>
+            <div class="gp-arm-fields"><select id="gp-arm-source" aria-label="电机开关通道"></select><label class="gp-arm-invert"><input id="gp-arm-invert" type="checkbox" />反向</label></div>
+            <p id="gp-arm-hint">默认 CH6 · 高位启动，低位关闭。</p>
+          </div>
+          <details id="gp-advanced" class="gp-advanced"><summary>校准与更多设置</summary>
+            <div class="gp-calibration"><div class="gp-section-head"><h3>中位与行程</h3><span id="gp-cal-stage"></span></div>
+              <p>所有摇杆放到中间，记录中位；再将各杆走满正负两端，完成校准。</p>
+              <div class="gp-cal-actions"><button id="gp-center">1. 记录中位</button><button id="gp-finish" disabled>2. 完成校准</button><button id="gp-cancel-cal" hidden>取消校准</button></div>
+            </div>
+            <div class="gp-section-head"><h3>摇杆死区</h3><span>百分比</span></div><div id="gp-deadzones" class="gp-deadzones"></div>
+            <div class="gp-section-head"><h3>原始通道</h3><span>用于检查输入</span></div><div id="gp-raw" class="gp-raw"></div><div id="gp-buttons" class="gp-buttons"></div>
+            <button id="gp-defaults" class="link-button">恢复 AETR / CH6 默认设置</button>
+          </details>
         </div>
       </div>
-      <p id="gp-message" class="gp-message" role="status" aria-live="polite"></p>
-      <div class="gp-footer"><button id="gp-disable">停用设备</button><button id="gp-save" class="primary" disabled>保存并启用</button></div>
-      <p class="gp-footnote">设置按设备保存在此浏览器，刷新后自动恢复已保存的设备。解锁通道不参与摇杆中位校准。</p>
+      <footer class="gp-footer"><p id="gp-message" class="gp-message" role="status" aria-live="polite">连接后自动生效，修改后保存。</p><button id="gp-save" class="primary" disabled>保存设置</button></footer>
     `;
     document.body.appendChild(this.dialog);
     this.el('gp-close').onclick = () => this.dialog.close();
     this.dialog.addEventListener('close', () => { this.capture = null; this.onClose(); });
-    this.el('gp-refresh').onclick = () => { this.controller.poll(); this.updateDevices(true); };
-    this.el<HTMLSelectElement>('gp-device').onchange = e => this.select((e.target as HTMLSelectElement).value);
-    this.el('gp-defaults').onclick = () => { const pad = this.selected(); if (pad) { this.capture = null; this.draft = defaultProfile(pad); this.buildRows(pad); this.message('已恢复默认分配；点击保存并启用后生效。'); this.updateCalibration(); } };
+    this.el<HTMLSelectElement>('gp-device').onchange = e => this.select((e.target as HTMLSelectElement).value, true);
+    this.el('gp-defaults').onclick = () => {
+      const pad = this.selected();
+      if (pad) { this.capture = null; this.draft = defaultProfile(pad); this.buildRows(pad); this.changed(); this.updateCalibration(); }
+    };
     this.el('gp-center').onclick = () => this.beginCalibration();
     this.el('gp-finish').onclick = () => this.finishCalibration();
-    this.el('gp-cancel-cal').onclick = () => { this.capture = null; const pad = this.selected(); if (pad) this.buildRows(pad); this.updateCalibration(); this.message('已取消采集，原有校准数据保持不变。'); };
-    this.el('gp-disable').onclick = () => { this.controller.disable(); this.message('已停用设备，恢复键盘 / 触控输入。电机保持关闭。'); this.updateAvailability(); };
+    this.el('gp-cancel-cal').onclick = () => { this.capture = null; this.updateCalibration(); this.message('已取消采集，原有校准保持不变。'); };
     this.el('gp-save').onclick = () => this.save();
   }
   private el<T extends HTMLElement = HTMLElement>(id: string) { return this.dialog.querySelector<T>(`#${id}`)!; }
   private selected() { return this.controller.devices.find(p => p.index === this.selectedIndex && deviceKey(p) === this.selectedKey); }
   private message(text: string, error = false) { this.el('gp-message').textContent = text; this.el('gp-message').classList.toggle('error', error); }
+  private changed() { this.message('更改尚未保存。'); this.updateAvailability(); }
   open() {
     if (this.dialog.open) return;
-    this.onOpen(); this.capture = null; this.message(''); this.controller.poll();
+    this.onOpen(); this.capture = null; this.message('连接后自动生效，修改后保存。'); this.controller.poll();
+    this.el<HTMLDetailsElement>('gp-advanced').open = false;
     this.devicesSignature = ''; this.selectedIndex = null; this.selectedKey = ''; this.draft = null;
-    this.updateDevices(true); this.dialog.showModal(); this.update(performance.now());
+    this.updateDevices(true); this.dialog.showModal();
+    this.dialog.querySelector('.gp-body')!.scrollTop = 0;
+    this.update(performance.now());
   }
-  private select(value: string) {
-    this.capture = null; this.message('');
+  private select(value: string, activate = false) {
+    this.capture = null;
     const pad = value === '' ? undefined : this.controller.devices.find(p => p.index === Number(value));
     this.selectedIndex = pad?.index ?? null; this.selectedKey = pad ? deviceKey(pad) : '';
     this.draft = pad ? this.controller.profileFor(pad) ?? this.store.load(pad) : null;
     this.el('gp-content').hidden = !pad; this.el('gp-empty').hidden = Boolean(pad);
-    this.el('gp-device-info').textContent = pad ? `${pad.axes.length} 个轴 · ${pad.buttons.length} 个按钮 · ${pad.mapping === 'standard' ? '标准手柄布局' : 'AETR 默认通道顺序'}` : '';
     this.el<HTMLSelectElement>('gp-device').value = pad ? String(pad.index) : '';
+    if (activate) {
+      if (pad && this.draft) {
+        try { this.controller.enable(pad, this.draft); this.message('已连接，关闭设置即可飞行。'); }
+        catch (error) { this.message((error as Error).message, true); }
+      } else { this.controller.disable(); this.message('已切换到键盘 / 触控。'); }
+    }
     if (pad) {
       this.buildRows(pad);
       const raw = this.el('gp-raw'); raw.replaceChildren();
       pad.axes.forEach((_, index) => {
         const row = document.createElement('div'); row.className = 'gp-raw-channel';
-        row.innerHTML = `<span>CH ${index + 1}<small>Axis ${index}</small></span><div class="gp-bar"><i></i><b></b></div><output>0.000</output>`;
+        row.innerHTML = `<span>CH${index + 1}</span><div class="gp-bar"><i></i><b></b></div><output>0%</output>`;
         raw.appendChild(row);
       });
     }
     this.updateCalibration(); this.updateAvailability();
   }
   private updateDevices(force = false) {
-    const signature = JSON.stringify([this.controller.error, this.controller.devices.map(p => [p.index, deviceKey(p)])]);
+    const signature = JSON.stringify([this.controller.error, this.controller.activeIndex, this.controller.devices.map(p => [p.index, deviceKey(p)])]);
     if (!force && signature === this.devicesSignature) return;
     this.devicesSignature = signature;
     const selected = this.selected();
     const select = this.el<HTMLSelectElement>('gp-device');
-    select.replaceChildren(new Option(this.controller.devices.length ? '选择输入设备' : '等待设备连接', ''));
-    this.controller.devices.forEach(p => select.add(new Option(`${p.id} · #${p.index + 1}`, String(p.index))));
+    select.replaceChildren(new Option(this.controller.devices.length ? '键盘 / 触控' : '等待设备连接', ''));
+    this.controller.devices.forEach(p => select.add(new Option(p.id, String(p.index))));
     if (selected) { select.value = String(selected.index); this.updateAvailability(); }
     else {
       const hadDevice = this.selectedIndex !== null;
-      const preferred = hadDevice ? undefined : this.controller.devices.find(p => p.index === this.controller.activeIndex) ?? this.controller.devices[0];
-      this.select(preferred ? String(preferred.index) : '');
-      if (hadDevice) this.message('设备已断开。本次未保存的校准已取消，请重新选择设备。', true);
+      const active = this.controller.devices.find(p => p.index === this.controller.activeIndex);
+      this.select(active ? String(active.index) : '');
+      if (hadDevice) this.message('设备已断开，重连后自动恢复；未保存的修改已取消。', true);
+      else if (active) this.message('已连接，关闭设置即可飞行。');
     }
     if (this.controller.error) this.message(this.controller.error, true);
   }
   private buildRows(pad: PadReading) {
-    const container = this.el('gp-mappings'); container.replaceChildren();
+    const container = this.el('gp-mappings'), deadzones = this.el('gp-deadzones'); container.replaceChildren(); deadzones.replaceChildren();
     for (const channel of ['roll', 'pitch', 'collective', 'yaw'] as const) {
       const m = this.draft!.channels[channel];
       const row = document.createElement('div'); row.className = 'gp-mapping-row'; row.dataset.channel = channel;
-      row.innerHTML = `<label class="gp-channel-name" for="gp-axis-${channel}">${channelNames[channel]}</label><select id="gp-axis-${channel}" aria-label="${channelNames[channel]}输入通道"></select><label class="gp-invert"><input id="gp-invert-${channel}" type="checkbox" aria-label="${channelNames[channel]}反向" />反向</label><label class="gp-deadzone"><input id="gp-deadzone-${channel}" type="number" min="0" max="20" step="0.5" aria-label="${channelNames[channel]}死区百分比" />%</label><div class="gp-output"><div class="gp-bar"><i></i><b></b></div><output>—</output></div><small class="gp-endpoints"></small>`;
+      row.innerHTML = `<label class="gp-channel-name" for="gp-axis-${channel}">${channelNames[channel]}</label><select id="gp-axis-${channel}" aria-label="${channelNames[channel]}输入通道"></select><label class="gp-invert"><input id="gp-invert-${channel}" type="checkbox" aria-label="${channelNames[channel]}反向" /><span>反向</span></label><div class="gp-output"><div class="gp-bar"><i></i><b></b></div><output>—</output></div>`;
       const select = row.querySelector('select')!;
       select.add(new Option('未分配', ''));
-      pad.axes.forEach((_, i) => select.add(new Option(`CH ${i + 1} · Axis ${i}`, String(i))));
+      pad.axes.forEach((_, i) => select.add(new Option(`CH${i + 1}`, String(i))));
       select.value = m.axis === null ? '' : String(m.axis);
       const reverse = row.querySelector<HTMLInputElement>('input[type=checkbox]')!; reverse.checked = m.inverted;
-      const zone = row.querySelector<HTMLInputElement>('input[type=number]')!; zone.value = String(Math.round(m.deadzone * 1000) / 10);
       select.onchange = () => {
-        const current = this.draft!.channels[channel];
-        Object.assign(current, { axis: select.value === '' ? null : Number(select.value), min: -1, center: 0, max: 1 });
-        this.showEndpoints(row, channel); this.message('通道已更改，校准已恢复默认值。'); this.updateAvailability();
+        Object.assign(this.draft!.channels[channel], { axis: select.value === '' ? null : Number(select.value), min: -1, center: 0, max: 1 });
+        this.changed();
       };
-      reverse.onchange = () => { this.draft!.channels[channel].inverted = reverse.checked; };
-      zone.oninput = () => { this.draft!.channels[channel].deadzone = zone.value === '' ? NaN : Number(zone.value) / 100; this.message(''); this.updateAvailability(); };
-      this.showEndpoints(row, channel); container.appendChild(row);
+      reverse.onchange = () => { this.draft!.channels[channel].inverted = reverse.checked; this.changed(); };
+      container.appendChild(row);
+      const label = document.createElement('label'); label.className = 'gp-deadzone';
+      label.innerHTML = `<span>${channelNames[channel]}</span><input id="gp-deadzone-${channel}" type="number" min="0" max="20" step="0.5" aria-label="${channelNames[channel]}死区百分比" />`;
+      const zone = label.querySelector('input')!; zone.value = String(Math.round(m.deadzone * 1000) / 10);
+      zone.oninput = () => { this.draft!.channels[channel].deadzone = zone.value === '' ? NaN : Number(zone.value) / 100; this.changed(); };
+      deadzones.appendChild(label);
     }
     const arm = this.draft!.arm, select = this.el<HTMLSelectElement>('gp-arm-source');
-    select.replaceChildren(new Option('未分配 · 空格启停', 'none'));
-    pad.axes.forEach((_, i) => select.add(new Option(`CH ${i + 1} · Axis ${i}`, `axis:${i}`)));
+    select.replaceChildren(new Option('空格启停', 'none'));
+    pad.axes.forEach((_, i) => select.add(new Option(`CH${i + 1}${i === 5 ? ' · 默认' : ''}`, `axis:${i}`)));
     pad.buttons.forEach((_, i) => select.add(new Option(`按钮 ${i + 1}`, `button:${i}`)));
     select.value = arm.source === 'none' ? 'none' : `${arm.source}:${arm.index}`;
     const invert = this.el<HTMLInputElement>('gp-arm-invert'); invert.checked = arm.inverted;
     select.onchange = () => {
       const [source, index] = select.value.split(':');
       this.draft!.arm.source = source as typeof arm.source;
-      this.draft!.arm.index = Number(index ?? 0); this.updateAvailability();
+      this.draft!.arm.index = Number(index ?? 0); this.changed();
     };
-    invert.onchange = () => { this.draft!.arm.inverted = invert.checked; };
-  }
-  private showEndpoints(row: HTMLElement, channel: Channel) {
-    const m = this.draft!.channels[channel];
-    row.querySelector('.gp-endpoints')!.textContent = m.axis === null ? '保留键盘 / 触控' : `最小 ${m.min.toFixed(3)} · 中位 ${m.center.toFixed(3)} · 最大 ${m.max.toFixed(3)}`;
+    invert.onchange = () => { this.draft!.arm.inverted = invert.checked; this.changed(); };
+    this.el('gp-arm-hint').textContent = pad.axes.length >= 6 ? '默认 CH6 · 高位启动，低位关闭。' : '设备没有 CH6，可选择其他开关；未分配时用空格启停。';
   }
   private beginCalibration() {
     const pad = this.selected(); if (!pad || !this.draft) return;
     try {
       this.capture = new CalibrationCapture(pad, this.draft);
-      this.message('中位已记录。现在将所有已分配摇杆缓慢走满两端，包括总距杆。');
+      this.message('中位已记录，将各摇杆走满正负两端，包括总距杆。');
     } catch (error) { this.message((error as Error).message, true); }
     this.updateCalibration();
   }
@@ -147,9 +162,9 @@ export class GamepadPanel {
     try {
       this.draft = this.capture.finish(); this.capture = null;
       const pad = this.selected(); if (pad) this.buildRows(pad);
-      this.message('校准完成。检查反向与输出，再点击“保存并启用”。');
+      this.message('校准完成，保存后生效。');
     } catch (error) { this.message((error as Error).message, true); }
-    this.updateCalibration(); this.updateAvailability();
+    this.updateCalibration();
   }
   private updateCalibration() {
     const capturing = Boolean(this.capture);
@@ -158,8 +173,8 @@ export class GamepadPanel {
     this.el('gp-cancel-cal').hidden = !capturing;
     this.el<HTMLSelectElement>('gp-device').disabled = capturing;
     this.el<HTMLButtonElement>('gp-defaults').disabled = capturing;
-    this.el('gp-cal-stage').textContent = capturing ? '正在采集行程' : '可随时重新校准';
-    this.dialog.querySelectorAll<HTMLInputElement | HTMLSelectElement>('#gp-mappings input, #gp-mappings select, #gp-arm-source, #gp-arm-invert').forEach(el => { el.disabled = capturing; });
+    this.el('gp-cal-stage').textContent = capturing ? '正在采集' : '';
+    this.dialog.querySelectorAll<HTMLInputElement | HTMLSelectElement>('#gp-mappings input, #gp-mappings select, #gp-deadzones input, #gp-arm-source, #gp-arm-invert').forEach(el => { el.disabled = capturing; });
     this.updateAvailability();
   }
   private updateAvailability() {
@@ -167,7 +182,9 @@ export class GamepadPanel {
     const errors = pad && this.draft ? profileErrors(this.draft, pad) : [];
     const save = this.el<HTMLButtonElement>('gp-save'); save.disabled = !pad || !this.draft || Boolean(this.capture) || errors.length > 0;
     save.title = errors.join('；');
-    this.el<HTMLButtonElement>('gp-disable').disabled = !this.controller.active;
+    this.el('gp-connection').textContent = pad && this.controller.profileFor(pad)
+      ? '已连接 · 设置期间电机关闭，关闭后即可飞行。'
+      : this.controller.devices.length ? '选择遥控器即可连接，或使用键盘 / 触控。' : '识别后自动连接 · 默认 AETR / CH6。';
     if (errors.length && !this.capture) this.message(errors.join('；'), true);
   }
   private save() {
@@ -175,7 +192,7 @@ export class GamepadPanel {
     try {
       this.controller.enable(pad, this.draft);
       const saved = this.store.save(pad, this.draft);
-      this.message(saved ? '已保存并启用。关闭设置后，由已分配通道控制飞机与电机。' : '设备已启用，但浏览器未允许保存设置；本次会话仍然有效。');
+      this.message(saved ? '已保存，关闭设置即可飞行。' : '已应用；浏览器不允许保存，当前会话仍有效。');
       this.updateAvailability();
     } catch (error) { this.message((error as Error).message, true); }
   }
@@ -185,30 +202,30 @@ export class GamepadPanel {
     const pad = this.selected(); if (!pad || !this.draft) return;
     if (this.capture) {
       try { this.capture.observe(pad); }
-      catch (error) { this.capture = null; this.buildRows(pad); this.updateCalibration(); this.message((error as Error).message, true); }
+      catch (error) { this.capture = null; this.updateCalibration(); this.message((error as Error).message, true); }
     }
     if (now - this.lastPaint < 50) return;
     this.lastPaint = now;
     const paint = (row: Element, value: number) => {
       const bounded = Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
       (row.querySelector('.gp-bar b') as HTMLElement).style.left = `${(bounded + 1) * 50}%`;
-      row.querySelector('output')!.textContent = Number.isFinite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(3)}` : '无效';
+      row.querySelector('output')!.textContent = Number.isFinite(value) ? `${Math.round(bounded * 100)}%` : '无效';
     };
-    this.el('gp-raw').querySelectorAll('.gp-raw-channel').forEach((row, i) => paint(row, pad.axes[i]));
-    const pressed = pad.buttons.map((b, i) => b.pressed || b.value > 0.1 ? `B${i + 1}` : '').filter(Boolean);
-    this.el('gp-buttons').textContent = pressed.length ? `按下：${pressed.join(' · ')}` : '按钮：未按下';
+    if (this.el<HTMLDetailsElement>('gp-advanced').open) {
+      this.el('gp-raw').querySelectorAll('.gp-raw-channel').forEach((row, i) => paint(row, pad.axes[i]));
+      const pressed = pad.buttons.map((b, i) => b.pressed || b.value > 0.1 ? `B${i + 1}` : '').filter(Boolean);
+      this.el('gp-buttons').textContent = pressed.length ? `按下：${pressed.join(' · ')}` : '';
+    }
     const output = mapPad(pad, this.draft);
-    this.el('gp-arm-state').textContent = output.motor === undefined ? '未分配' : output.motor ? '解锁 / 电机开启' : '锁定 / 电机关闭';
+    this.el('gp-arm-state').textContent = output.motor === undefined ? '空格启停' : output.motor ? '电机开启' : '电机关闭';
     this.el('gp-mappings').querySelectorAll<HTMLElement>('.gp-mapping-row').forEach(row => {
       const channel = row.dataset.channel as Channel;
       paint(row.querySelector('.gp-output')!, output[channel] ?? 0);
       if (output[channel] === undefined) row.querySelector('output')!.textContent = '—';
-      const sample = this.capture?.samples[channel];
-      if (sample) row.querySelector('.gp-endpoints')!.textContent = `采集中 ${sample.min.toFixed(3)} ← ${sample.center.toFixed(3)} → ${sample.max.toFixed(3)}`;
     });
     if (this.capture) {
       const pending = this.capture.incomplete;
-      this.el('gp-cal-stage').textContent = pending.length ? `待走满 ${pending.length} 个通道` : '行程已采集，可完成';
+      this.el('gp-cal-stage').textContent = pending.length ? `待走满 ${pending.length} 个通道` : '可完成校准';
     }
   }
 }

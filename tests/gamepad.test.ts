@@ -106,13 +106,13 @@ test('polling reads fresh selected device, handles sparse slots and leaves unass
   controller.disable(); controller.poll(); assert.deepEqual(controller.output, {});
 });
 
-test('disconnect reports loss exactly once, reconnect needs enabling, index reuse never takes over', () => {
+test('disconnect reports loss once, reconnect restores the selected radio, index reuse never takes over', () => {
   let devices: PadReading[] = [pad()], loss = 0;
   const controller = new GamepadController(() => devices, () => { loss++; });
   controller.poll(); controller.enable(devices[0], assigned());
   devices = []; controller.poll(); controller.poll();
   assert.equal(loss, 1); assert.equal(controller.active, false); assert.deepEqual(controller.output, {});
-  devices = [pad()]; controller.poll(); assert.equal(controller.active, false);
+  devices = [pad()]; controller.poll(); assert.equal(controller.active, true);
   controller.enable(devices[0], assigned());
   devices = [pad({ id: 'Different radio in same slot' })]; controller.poll();
   assert.equal(loss, 2); assert.equal(controller.active, false);
