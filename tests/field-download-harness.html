@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>飞场下载 / 缓存验证</title>
+<div id="app"></div>
+<script type="module">
+// Development-only integration harness. Its isolated CacheStorage namespace
+// never touches the user's real downloaded maps or changes production fetching.
+const cacheName = 'rotorever-fields-qa-v1';
+const originalOpen = caches.open.bind(caches);
+caches.open = name => originalOpen(name === 'rotorever-fields-v1' ? cacheName : name);
+const requests = { 'river-meadow-hd': 0, 'x5-grassland': 0, 'river-meadow': 0 };
+let offline = sessionStorage.getItem('field-qa-offline') === '1';
+const fetchOriginal = window.fetch.bind(window);
+window.fetch = async (url, options) => {
+  const match = String(url).match(/\/environments\/([^/]+)\//);
+  if (match) {
+    requests[match[1]]++;
+    if (offline) throw new Error('QA: field network disabled');
+  }
+  return fetchOriginal(url, options);
+};
+await import('/src/main.ts');
+const diagnostics = document.createElement('section');
+diagnostics.style.cssText = 'border-top:1px solid #456;padding:10px 20px;background:#101c2c;font:11px monospace';
+diagnostics.innerHTML = '<label><input type="checkbox" id="qa-offline"> 模拟地图断网（刷新后保留）</label><output id="qa-requests" style="display:block;white-space:pre-wrap;margin-top:8px"></output><button id="qa-clear" style="margin-top:8px;padding:5px">清理测试地图缓存</button>';
+document.querySelector('#field-dialog').append(diagnostics);
+document.querySelector('#field-dialog').style.gridTemplateRows = 'auto minmax(0,1fr) auto auto';
+const checkbox = document.querySelector('#qa-offline'); checkbox.checked = offline;
+checkbox.onchange = () => { offline = checkbox.checked; sessionStorage.setItem('field-qa-offline', offline ? '1' : '0'); };
+document.querySelector('#qa-clear').onclick = async () => { await caches.delete(cacheName); location.reload(); };
+setInterval(() => {
+  document.querySelector('#qa-requests').textContent = `本页地图网络请求：高清 ${requests['river-meadow-hd']} / 实拍 ${requests['x5-grassland']} / 轻量 ${requests['river-meadow']}\n${offline ? '地图网络已禁用，切换仅可读取缓存' : '地图网络可用'}`;
+}, 200);
+</script></html>

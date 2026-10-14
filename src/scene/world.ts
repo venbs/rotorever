@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { FlightState } from '../physics/simulator.ts';
 import { GroundCamera } from './camera.ts';
 import { PhotoField } from './photofield.ts';
+import { defaultField, type FieldMap } from '../field.ts';
+import type { FieldTextureSource } from '../field-assets.ts';
 
 export type RenderPose = Pick<FlightState, 'position' | 'attitude'>;
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -128,18 +130,22 @@ export class FlightWorld {
     }
   }
 
-  loadField() { return this.field.load(); }
+  async loadField(map: FieldMap = defaultField, source?: FieldTextureSource) {
+    const quality = await this.field.load(map, source);
+    if (quality !== 'unavailable' && quality !== 'superseded') this.groundCamera.setPilot(map.field.pilot);
+    return quality;
+  }
 
   resetCamera() { this.groundCamera.reset(); this.groundCamera.track(this.helicopter.position); }
   resetTrail() { this.trailCount = 0; this.trailTime = -1; this.trailGeometry.setDrawRange(0, 0); }
 
-  render(state: FlightState, previous: RenderPose, alpha: number) {
+  render(state: FlightState, previous: RenderPose, alpha: number, elapsed = 1 / 60) {
     const position = this.helicopter.position;
     position.set(previous.position.x, previous.position.y, previous.position.z).lerp(this.renderPosition.set(state.position.x, state.position.y, state.position.z), alpha);
     this.helicopter.quaternion.set(previous.attitude.x, previous.attitude.y, previous.attitude.z, previous.attitude.w)
       .slerp(this.renderAttitude.set(state.attitude.x, state.attitude.y, state.attitude.z, state.attitude.w), alpha);
     if (this.mainRotor) this.mainRotor.rotation.y = -state.rotorPhase;
-    if (this.tailRotor) this.tailRotor.rotation.z = state.rotorPhase * 80 / 19;
+    if (this.tailRotor) this.tailRotor.rotation.z = state.tailPhase;
     this.blades.forEach(o => { o.visible = state.rotorSpeed < 75; });
     (this.mainDisc.material as THREE.MeshBasicMaterial).opacity = state.rotorSpeed > 35 ? Math.min(0.14, (state.rotorSpeed - 35) / 1200) : 0;
     (this.tailDisc.material as THREE.MeshBasicMaterial).opacity = state.rotorSpeed > 35 ? 0.13 : 0;
@@ -164,7 +170,7 @@ export class FlightWorld {
       this.trailGeometry.setDrawRange(0, this.trailCount);
     }
     this.trail.visible = this.trailEnabled;
-    this.groundCamera.track(position);
+    this.groundCamera.track(position, elapsed);
     this.renderer.render(this.scene, this.camera);
   }
 }

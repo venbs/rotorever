@@ -60,12 +60,23 @@ test('PID, steady FF and Boost independently affect the physical response', () =
 
 test('FBL profiles round-trip; corrupt or out-of-range settings fall back atomically', () => {
   const profile = defaultFbl(); profile.pitch.p = 76; profile.yaw.ff = 90; profile.bCutoff = 28;
+  profile.errorRotation = false; profile.errorRotationGain = 85;
   assert.deepEqual(readFbl(JSON.stringify(profile)), profile);
-  for (const invalid of [null, {}, { ...profile, roll: null }, { ...profile, dCutoff: 0 }, { ...profile, yaw: { ...profile.yaw, d: -1 } }]) {
+  for (const invalid of [null, {}, { ...profile, roll: null }, { ...profile, dCutoff: 0 }, { ...profile, yaw: { ...profile.yaw, d: -1 } },
+    { ...profile, errorRotation: 'true' }, { ...profile, errorRotationGain: -1 }, { ...profile, errorRotationGain: 151 },
+    { ...profile, errorRotationGain: '100' }, { ...profile, errorRotationGain: NaN }]) {
     assert.equal(validFbl(invalid), false);
     assert.deepEqual(readFbl(JSON.stringify(invalid)), defaultFbl());
   }
   assert.deepEqual(readFbl('{broken'), defaultFbl());
   const a = defaultInput(), b = defaultInput(); a.fbl.roll.p = 0;
   assert.equal(b.fbl.roll.p, 85, 'profiles must not share mutable gain objects');
+});
+
+test('old FBL profiles add RF-reference piro defaults without discarding gains or explicit settings', () => {
+  const tune = defaultFbl(); tune.pitch.p = 123; tune.bCutoff = 19;
+  const { errorRotation, errorRotationGain, ...legacy } = tune;
+  assert.deepEqual(readFbl(JSON.stringify(legacy)), tune);
+  assert.deepEqual(readFbl(JSON.stringify({ ...legacy, errorRotation: false })), { ...tune, errorRotation: false });
+  assert.deepEqual(readFbl(JSON.stringify({ ...legacy, errorRotationGain: 75 })), { ...tune, errorRotationGain: 75 });
 });

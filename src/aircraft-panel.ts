@@ -1,5 +1,5 @@
-import { copyFbl, defaultFbl, fblAxes, filterBounds, filterKeys, gainBounds, gainKeys } from './physics/fbl.ts';
-import { aircraftBounds, aircraftStorageKey, validAircraft, type AircraftProfile } from './aircraft-settings.ts';
+import { copyFbl, defaultErrorRotation, errorRotationBounds, fblAxes, filterBounds, filterKeys, gainBounds, gainKeys } from './physics/fbl.ts';
+import { aerodynamicKeys, defaultAircraft, aircraftBounds, aircraftStorageKey, validAircraft, type AircraftProfile } from './aircraft-settings.ts';
 import type { ProfileStorage } from './gamepad.ts';
 
 const axisNames = { roll: '横滚', pitch: '俯仰', yaw: '尾舵' };
@@ -26,8 +26,17 @@ export class AircraftPanel {
         <div class="settings-content">
           <section id="panel-airframe" role="tabpanel" aria-labelledby="tab-airframe">
             <div class="section-caption"><span>01 / AIRFRAME</span><span>动力与质量</span></div>
-            <div class="setting-grid">${numberField('mass', '起飞重量', 'kg')}${numberField('rpm', '定速转速', 'RPM')}</div>
+            <div class="setting-grid">${numberField('mass', '起飞重量', 'kg', '同样推力下，重量越小，加速度越大。')}${numberField('rpm', '定速转速', 'RPM')}</div>
             <p class="setting-note">起飞重量包含电池。定速器维持设定转速，总距独立控制升力。</p>
+            <div class="aerodynamics-setting">
+              <div class="section-caption"><span>气动响应</span><button type="button" class="text-button" id="aerodynamics-defaults">恢复气动默认</button></div>
+              <div class="setting-grid aerodynamic-grid">
+                ${numberField('liftGain', '总距升力增益', '%', '同转速、同螺距下，调高会增加推力和动力负载。')}
+                ${numberField('axialDamping', '旋翼轴向阻尼', '%', '调低会减小沿桨轴运动的阻力，也会减弱制动。')}
+                ${numberField('bodyDrag', '机身空气阻力', '%', '影响机身各方向的平移阻力，不改变旋翼阻尼。')}
+              </div>
+              <p class="setting-note">100% 为当前基准。先每次只调整一项，再点击应用设置试飞。</p>
+            </div>
             <div class="motor-setting">
               <div class="motor-setting-head"><label for="aircraft-motorTorque">电机扭矩</label><output id="motor-torque-value" for="aircraft-motorTorque"></output></div>
               <input id="aircraft-motorTorque" type="range" min="${aircraftBounds.motorTorque.min}" max="${aircraftBounds.motorTorque.max}" step="${aircraftBounds.motorTorque.step}" aria-describedby="motor-torque-note" />
@@ -36,12 +45,20 @@ export class AircraftPanel {
             </div>
           </section>
           <section id="panel-flight" role="tabpanel" aria-labelledby="tab-flight" hidden>
-            <div class="section-caption"><span>02 / FLIGHT CONTROL</span><button type="button" class="text-button" id="fbl-defaults">恢复推荐 PID</button></div>
+            <div class="section-caption"><span>02 / FLIGHT CONTROL</span><button type="button" class="text-button" id="fbl-defaults">恢复飞控默认</button></div>
             <div class="fbl-table-wrap"><table class="fbl-table"><thead><tr><th scope="col">轴</th>${gainKeys.map(key => `<th scope="col">${gainNames[key]}</th>`).join('')}</tr></thead><tbody>${fblAxes.map(axis => `<tr><th scope="row">${axisNames[axis]}</th>${gainKeys.map(key => {
               const b = gainBounds[key];
               return `<td><input id="fbl-${axis}-${key}" aria-label="${axisNames[axis]} ${gainNames[key]}" type="number" min="${b.min}" max="${b.max}" step="${b.step}" required /></td>`;
             }).join('')}</tr>`).join('')}</tbody></table></div>
             <p class="setting-note">P 跟随 · I 消除偏差 · D 抑制回弹<br>FF 持续速率前馈 · B 打杆与换向加速</p>
+            <div class="piro-setting">
+              <div class="section-caption"><span>自旋优化</span><button type="button" class="text-button" id="piro-defaults">恢复自旋默认</button></div>
+              <div class="setting-grid">
+                <label class="setting-field" for="fbl-errorRotation"><span>误差旋转</span><span class="piro-toggle"><input id="fbl-errorRotation" type="checkbox" aria-describedby="piro-note" /><span>开启自旋补偿</span></span><small>推荐开启，帮助自旋时保持姿态。</small></label>
+                <label class="setting-field" for="fbl-errorRotationGain"><span>补偿比例</span><div class="field-value"><input id="fbl-errorRotationGain" type="number" min="${errorRotationBounds.min}" max="${errorRotationBounds.max}" step="${errorRotationBounds.step}" required aria-describedby="piro-note" /><span>%</span></div><small>RF 参考值 100%；每次调整 5% 试飞。</small></label>
+              </div>
+              <p id="piro-note" class="setting-note">100% 按实际自旋角度完整补偿横滚与俯仰误差。低于 100% 减少补偿，高于 100% 增加补偿；关闭或设为 0% 时不补偿。</p>
+            </div>
             <details class="fbl-advanced"><summary>滤波设置</summary><div class="setting-grid three">${filterKeys.map(key => `<label class="setting-field" for="fbl-${key}"><span>${filterNames[key]}</span><div class="field-value"><input id="fbl-${key}" type="number" min="${filterBounds.min}" max="${filterBounds.max}" step="1" required /><span>Hz</span></div></label>`).join('')}</div><p class="setting-note">参数采用本模拟器尺度，不能直接照搬真实飞控。P 为 s⁻¹，I 为 s⁻²，D 为无量纲；FF / B 为百分比。</p></details>
           </section>
           <section id="panel-rates" role="tabpanel" aria-labelledby="tab-rates" hidden>
@@ -67,7 +84,13 @@ export class AircraftPanel {
       };
     });
     dialog.querySelector<HTMLButtonElement>('#fbl-defaults')!.onclick = () => {
-      this.fillFbl(defaultFbl()); this.message('推荐 PID 已填入，点击应用设置后生效');
+      this.fillFbl(defaultAircraft().fbl); this.message('飞控默认已填入，点击应用设置后生效');
+    };
+    dialog.querySelector<HTMLButtonElement>('#piro-defaults')!.onclick = () => {
+      this.fillErrorRotation(defaultErrorRotation()); this.message('自旋默认已填入，点击应用设置后生效');
+    };
+    dialog.querySelector<HTMLButtonElement>('#aerodynamics-defaults')!.onclick = () => {
+      this.fillAerodynamics(defaultAircraft().aerodynamics); this.message('气动默认已填入，点击应用设置后生效');
     };
     form.onsubmit = e => {
       e.preventDefault();
@@ -80,9 +103,12 @@ export class AircraftPanel {
         mass: this.value('aircraft-mass'), rpm: this.value('aircraft-rpm'), motorTorque: this.value('aircraft-motorTorque'), pitch: this.value('aircraft-pitch'),
         rates: { cyclic: this.value('aircraft-cyclic'), yaw: this.value('aircraft-yaw'), expo: this.value('aircraft-expo') / 100 },
         fbl: copyFbl(this.profile.fbl),
+        aerodynamics: { liftGain: this.value('aircraft-liftGain'), axialDamping: this.value('aircraft-axialDamping'), bodyDrag: this.value('aircraft-bodyDrag') },
       };
       for (const axis of fblAxes) for (const key of gainKeys) draft.fbl[axis][key] = this.value(`fbl-${axis}-${key}`);
       for (const key of filterKeys) draft.fbl[key] = this.value(`fbl-${key}`);
+      draft.fbl.errorRotation = this.field('fbl-errorRotation').checked;
+      draft.fbl.errorRotationGain = this.value('fbl-errorRotationGain');
       if (!validAircraft(draft)) { this.message('请检查参数范围'); return; }
       this.profile = structuredClone(draft); onApply(draft);
       let saved = false;
@@ -105,11 +131,20 @@ export class AircraftPanel {
   private fillFbl(profile: AircraftProfile['fbl']) {
     for (const axis of fblAxes) for (const key of gainKeys) this.field(`fbl-${axis}-${key}`).value = String(profile[axis][key]);
     for (const key of filterKeys) this.field(`fbl-${key}`).value = String(profile[key]);
+    this.fillErrorRotation(profile);
+  }
+  private fillErrorRotation(profile: ReturnType<typeof defaultErrorRotation>) {
+    this.field('fbl-errorRotation').checked = profile.errorRotation;
+    this.field('fbl-errorRotationGain').value = String(profile.errorRotationGain);
+  }
+  private fillAerodynamics(profile: AircraftProfile['aerodynamics']) {
+    for (const key of aerodynamicKeys) this.field(`aircraft-${key}`).value = String(profile[key]);
   }
   private fill() {
     const p = this.profile;
     for (const key of ['mass', 'rpm', 'motorTorque', 'pitch'] as const) this.field(`aircraft-${key}`).value = String(p[key]);
     this.updateMotorTorque();
+    this.fillAerodynamics(p.aerodynamics);
     this.field('aircraft-cyclic').value = String(p.rates.cyclic); this.field('aircraft-yaw').value = String(p.rates.yaw);
     this.field('aircraft-expo').value = String(p.rates.expo * 100); this.fillFbl(p.fbl);
   }

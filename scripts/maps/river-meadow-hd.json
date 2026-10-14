@@ -1,0 +1,51 @@
+{
+  "id": "river-meadow-hd",
+  "name": "河畔草地飞场 · 高清",
+  "eyeHeight": 1.8,
+  "startDistance": 9,
+  "lighting": {
+    "sunColor": "#fffaf1",
+    "sunIntensity": 2.8,
+    "skyColor": "#cfe4ff",
+    "groundColor": "#71824a",
+    "hemisphereIntensity": 1.8,
+    "environmentIntensity": 0.45,
+    "shadowOpacity": 0.42
+  },
+  "sources": {
+    "forward": {
+      "file": "assets/newmap/forward-GldtVqaHvat2bY.png",
+      "sha256": "2bf8f8395a4c7af77ea917f3b481be9974c7fde0850208fc68a3437a4a6e14d0"
+    },
+    "right": {
+      "file": "assets/newmap/right-Ms5KMDkqrOotng.png",
+      "sha256": "8bc70bc0ba0cc4486a77d120794606755413b55acd4a423ad6eaef4808f94f3c"
+    },
+    "rear": {
+      "file": "assets/newmap/rear-d8x5apkl6_eNV5.png",
+      "sha256": "ffe485fffe80cf43010ac50c52be2d56943d161a8da7d1ffc3457eddb4f8cffb"
+    },
+    "left": {
+      "file": "assets/newmap/left-udu1EESWo-hWrA.png",
+      "sha256": "fa99d9ba22b6ab0f92cba0d40b36a20087df691d05144d687ecbb96ea4ad8061"
+    },
+    "up": {
+      "file": "assets/newmap/up-ugThDKJ1P48VZu.png",
+      "sha256": "537fe37d15cca969a13efd02dba3b636328f0d364caa4766a2d3077073c30d53"
+    },
+    "down": {
+      "file": "assets/newmap/down-ldYrXfVCNyr3NA.png",
+      "sha256": "bffc443d8978737aa22d624f320a857e514aa103ade05296d384822fca82926b"
+    }
+  },
+  "provenance": "User supplied six individually enhanced 4096×4096 PNGs in assets/newmap, derived from the river-meadow reference faces. Enhancement model/settings were not reported.",
+  "calibration": {
+    "sunFace": "top",
+    "sunUV": [
+      0.7530277391389547,
+      0.8307954786983719
+    ],
+    "method": "Solar highlight centroid measured on the enhanced up face at pixel (3083.90, 3402.44). Input direction names mapped to project cube faces; no rotation, flip, crop or seam blending.",
+    "scaleNote": "Eye height 1.8 m, spawn distance 9 m are scene assumptions. Flat ground; river is visual background only."
+  }
+}

@@ -1,0 +1,63 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>总距抽拉 / 垂直追踪对照</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1018;color:#edf3ff;font:13px system-ui;overflow:hidden}#viewport{height:100dvh}
+header,footer{position:absolute;z-index:1;left:18px;padding:14px 18px;background:#0b1119e8;border:1px solid #ffffff25;max-width:calc(100vw - 36px)}header{top:18px}footer{bottom:18px;white-space:pre-wrap;line-height:1.7}
+h1{font-size:16px;font-weight:500;margin:0 0 12px}nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}button,select{background:#172335;border:1px solid #54759b;color:inherit;font:inherit;padding:7px 10px}button{cursor:pointer}button[aria-pressed=true]{background:#28558b}p{color:#aabbd0;line-height:1.6;margin:10px 0 0;max-width:620px}a{color:#8bbcff}
+#center{position:absolute;pointer-events:none;top:50%;left:50%;width:70px;border-top:1px solid #bad7ff90;transform:translateX(-50%)}
+</style>
+<header><h1>总距抽拉 / 摄像机对照</h1><nav>
+<label>动作 <select id="motion"><option value="pump">悬停高频抽拉</option><option value="horizontal">水平快速往返</option><option value="vertical">垂直快速往返</option></select></label>
+<label>频率 <select id="frequency"><option>5</option><option selected>6</option><option>8</option></select> Hz</label>
+<button id="direct" aria-pressed="false">旧：机体锁定中心</button><button id="damped" aria-pressed="true">新：仅垂直柔跟</button><button id="replay">重播</button>
+</nav><p>总距抽拉：5 kg / 2400 RPM / 电机 90%，悬停螺距 ±8°。两种镜头使用同一条真实物理解算轨迹；细线标记画面中心，未增加机体抖动或额外升力。水平 / 垂直往返使用独立预设轨迹检查镜头。</p>
+<p>测试页不读取或写入用户设置 · <a href="/">返回模拟器</a></p></header>
+<div id="viewport"></div><i id="center"></i><footer id="result">准备模型与飞场…</footer>
+<script type="module">
+import { Vector3 } from 'three';
+import { FlightWorld } from '/src/scene/world.ts';
+import { HelicopterSimulation, defaultInput } from '/src/physics/simulator.ts';
+import { applyAircraft, defaultAircraft } from '/src/aircraft-settings.ts';
+import { pilotEye } from '/src/scene/camera.ts';
+const world = new FlightWorld(document.querySelector('#viewport'));
+await Promise.all([world.loadModel(),world.loadField()]);
+const frequency=document.querySelector('#frequency'),motion=document.querySelector('#motion'),result=document.querySelector('#result');
+let trace=[],direct=false,time=0,last=performance.now(),done=false,minY=Infinity,maxY=-Infinity,maxX=0,maxScreenY=0;
+function makeTrace(){
+ const sim=new HelicopterSimulation(),input=defaultInput(),profile=defaultAircraft();applyAircraft(sim,input,profile);
+ input.motor=true;const trim=sim.hover(profile.rpm);sim.state.position.y=pilotEye.y;
+ trace=[structuredClone(sim.state)];const hz=Number(frequency.value);
+ for(let n=0;n<4000;n++){
+  const sampleTime=Math.floor((n*.002+1e-9)*60)/60;
+  input.collective=trim+8/profile.pitch*Math.cos(2*Math.PI*hz*sampleTime);sim.step(.002,input);
+  if(sim.state.crashed)throw Error('测试轨迹意外触地');
+  trace.push(structuredClone(sim.state));
+ }
+}
+function restart(){time=0;done=false;last=performance.now();minY=Infinity;maxY=-Infinity;maxX=maxScreenY=0;world.groundCamera.reset();}
+frequency.onchange=()=>{makeTrace();restart();};motion.onchange=restart;
+document.querySelector('#direct').onclick=()=>{direct=true;restart();};
+document.querySelector('#damped').onclick=()=>{direct=false;restart();};document.querySelector('#replay').onclick=restart;
+makeTrace();restart();
+function frame(now){
+ const elapsed=Math.min(.1,Math.max(0,(now-last)/1000));last=now;if(!done)time=Math.min(8,time+elapsed);
+ const index=Math.min(trace.length-2,Math.floor(time/.002)),blend=Math.min(1,(time-index*.002)/.002),previous=trace[index],next=trace[index+1];
+ const state={...next,position:{...next.position},attitude:{...next.attitude}};
+ const pose={position:{...previous.position},attitude:{...previous.attitude}};
+ if(motion.value!=='pump'){
+  const yaw=Math.PI/2+(motion.value==='horizontal'?.5*Math.sin(2*Math.PI*.8*time):0);
+  const elevation=motion.value==='vertical'?.15*Math.sin(2*Math.PI*1.5*time):0;
+  state.position={x:pilotEye.x+9*Math.sin(yaw)*Math.cos(elevation),y:pilotEye.y+9*Math.sin(elevation),z:pilotEye.z-9*Math.cos(yaw)*Math.cos(elevation)};
+  pose.position={...state.position};state.attitude={x:0,y:0,z:0,w:1};pose.attitude={...state.attitude};
+ }
+ const rendered=new Vector3(pose.position.x,pose.position.y,pose.position.z).lerp(new Vector3(state.position.x,state.position.y,state.position.z),blend);
+ if(direct)world.groundCamera.snap(rendered);
+ world.render(state,pose,blend,elapsed);
+ const screen=rendered.clone().project(world.camera);
+ if(time>2){minY=Math.min(minY,screen.y);maxY=Math.max(maxY,screen.y);maxX=Math.max(maxX,Math.abs(screen.x));maxScreenY=Math.max(maxScreenY,Math.abs(screen.y));}
+ document.querySelector('#direct').setAttribute('aria-pressed',String(direct));document.querySelector('#damped').setAttribute('aria-pressed',String(!direct));
+ result.textContent=`${direct?'旧：锁定中心':'新：水平紧跟 / 垂直柔跟'} · ${time.toFixed(2)} s · ${done?'完成，可重播':'播放中'}\n实际桨距 ${(state.collective*180/Math.PI).toFixed(1)}° · 垂直加速度 ${state.acceleration.y.toFixed(1)} m/s² · 转速 ${Math.round(state.rotorSpeed*30/Math.PI)} RPM\n最大横向画面偏移 ${maxX.toFixed(4)} · 垂直画面偏移 ${maxScreenY.toFixed(4)} · 上下屏幕行程 ${Number.isFinite(maxY-minY)?((maxY-minY)*innerHeight/2).toFixed(1):'—'} px`;
+ if(time>=8)done=true;requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></html>

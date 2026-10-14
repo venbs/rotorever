@@ -47,7 +47,7 @@ function frame(now) {
     frames++;
     if (sim.state.time > brakeAt + 0.3 || sim.state.time > 2 || sim.state.crashed) running = false;
   }
-  world.render(sim.state, previous, running ? alpha : 1);
+  world.render(sim.state, previous, running ? alpha : 1, elapsed);
   const pos = world.camera.position;
   document.querySelector('#result').textContent = `${running ? '回放中' : '完成 / 待开始'} · ${channel} · 累积 ${rotation.toFixed(1)}° · ${inverted ? '已经过倒飞' : '未经过倒飞'} · ${sim.state.crashed ? '坠机' : '未坠机'}\n机位 ${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)} m · 高度 ${sim.state.position.y.toFixed(2)} m · 峰值 ${maxRate.toFixed(1)}°/s · ${running ? Math.round(frames * 1000 / (now - wallStart)) : '—'} FPS · ${world.renderer.info.render.calls} 绘制调用`;
   requestAnimationFrame(frame);

@@ -22,7 +22,7 @@ export class GamepadPanel {
       <div class="gp-body">
         <label class="gp-device-label" for="gp-device">输入设备</label><select id="gp-device"><option value="">等待设备连接</option></select>
         <p id="gp-connection" class="gp-intro"></p>
-        <div id="gp-empty" class="gp-empty"><strong>连接 USB 遥控器，即可开始</strong><p>选择 HID / 游戏控制器模式，点击页面并拨动摇杆。识别后自动使用 AETR，无需保存即可飞行。</p></div>
+        <div id="gp-empty" class="gp-empty"><strong>连接 USB 遥控器，即可开始</strong><p>选择 HID / 游戏控制器模式，点击页面并拨动摇杆。首次连接默认 AETR / CH6，用过的设备自动恢复，无需点击保存。</p></div>
         <div id="gp-content" hidden>
           <div class="gp-table-head"><span>功能</span><span>通道</span><span>反向</span><span>输出</span></div>
           <div id="gp-mappings"></div>
@@ -81,7 +81,7 @@ export class GamepadPanel {
       if (pad && this.draft) {
         try { this.controller.enable(pad, this.draft); this.message('已连接，关闭设置即可飞行。'); }
         catch (error) { this.message((error as Error).message, true); }
-      } else { this.controller.disable(); this.message('已切换到键盘 / 触控。'); }
+      } else { this.controller.disable(); this.message('本次连接使用键盘 / 触控；重新插入遥控器后自动连接。'); }
     }
     if (pad) {
       this.buildRows(pad);
@@ -95,7 +95,7 @@ export class GamepadPanel {
     this.updateCalibration(); this.updateAvailability();
   }
   private updateDevices(force = false) {
-    const signature = JSON.stringify([this.controller.error, this.controller.activeIndex, this.controller.devices.map(p => [p.index, deviceKey(p)])]);
+    const signature = JSON.stringify([this.controller.error, this.controller.activeIndex, this.controller.automatic, this.controller.connectionStatus, this.controller.devices.map(p => [p.index, deviceKey(p)])]);
     if (!force && signature === this.devicesSignature) return;
     this.devicesSignature = signature;
     const selected = this.selected();
@@ -182,9 +182,17 @@ export class GamepadPanel {
     const errors = pad && this.draft ? profileErrors(this.draft, pad) : [];
     const save = this.el<HTMLButtonElement>('gp-save'); save.disabled = !pad || !this.draft || Boolean(this.capture) || errors.length > 0;
     save.title = errors.join('；');
+    const hints = {
+      waiting: '识别后自动连接 · 默认 AETR / CH6。',
+      keyboard: '当前使用键盘 / 触控，重新插入遥控器后自动连接。',
+      ambiguous: '检测到多个候选设备，请选择用于飞行的遥控器。',
+      select: '选择一次输入设备，下次连接时自动恢复。',
+      invalid: '等待有效的通道数据，请拨动摇杆或检查设备。',
+      connected: '选择遥控器即可连接。',
+    };
     this.el('gp-connection').textContent = pad && this.controller.profileFor(pad)
-      ? '已连接 · 设置期间电机关闭，关闭后即可飞行。'
-      : this.controller.devices.length ? '选择遥控器即可连接，或使用键盘 / 触控。' : '识别后自动连接 · 默认 AETR / CH6。';
+      ? `${this.controller.automatic ? '已自动连接' : '已连接'} · 设置期间电机关闭，关闭后即可飞行。`
+      : hints[this.controller.connectionStatus];
     if (errors.length && !this.capture) this.message(errors.join('；'), true);
   }
   private save() {

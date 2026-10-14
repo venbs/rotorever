@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>遥控器自动连接验证</title>
+<body><div id="app"></div>
+<aside style="position:fixed;left:12px;top:12px;z-index:50;max-width:310px;padding:12px;background:#111e;color:white;font:12px system-ui">
+  <p>自动连接验证 · 模拟设备与独立会话存储，不修改真实配置</p>
+  <button id="connect">插入遥控器</button><button id="gamepad">插入普通手柄</button>
+  <button id="disconnect">拔出遥控器</button><button id="reindex">重连到编号 5</button>
+  <button id="move">打杆</button><button id="duplicate">插入同型号遥控器</button>
+  <button id="reload">刷新页面</button><button id="legacy">旧版键盘状态并刷新</button>
+  <button id="clear">重置测试</button>
+  <p id="fixture-status"></p>
+  <p>打杆后预期：横滚 50% / 俯仰 −50% / 偏航 100% / 总距 6°。打开设置应直接选中遥控器。</p>
+</aside>
+<script type="module">
+const prefix = 'rotorever-auto-test:';
+const memory = window.sessionStorage;
+const storage = {getItem:key=>memory.getItem(prefix+key),setItem:(key,value)=>memory.setItem(prefix+key,value)};
+const radio = index => ({id:'Test TX (Vendor: 1209 Product: 4f54)',index,connected:true,mapping:'',axes:[0,0,0,0,-1,-1,0,0],buttons:[]});
+const gamepad = {id:'Test standard gamepad',index:0,connected:true,mapping:'standard',axes:[0,0,0,0],buttons:[]};
+let devices = JSON.parse(storage.getItem('devices') ?? '[]');
+function persist() {
+  storage.setItem('devices',JSON.stringify(devices));
+  document.querySelector('#fixture-status').textContent=devices.map(p=>`${p.index}: ${p.id}`).join(' / ') || '没有连接设备';
+}
+Object.defineProperty(window,'localStorage',{value:storage});
+Object.defineProperty(navigator,'getGamepads',{value:()=>devices});
+document.querySelector('#connect').onclick=()=>{devices=devices.filter(p=>p.index!==2);devices.push(radio(2));persist();};
+document.querySelector('#gamepad').onclick=()=>{devices=devices.filter(p=>p.index!==0);devices.push(gamepad);persist();};
+document.querySelector('#disconnect').onclick=()=>{devices=devices.filter(p=>p.mapping==='standard');persist();};
+document.querySelector('#reindex').onclick=()=>{devices=devices.filter(p=>p.mapping==='standard');devices.push(radio(5));persist();};
+document.querySelector('#move').onclick=()=>{devices.filter(p=>p.mapping==='').forEach(p=>p.axes.splice(0,4,.5125,-.5125,.5,1));persist();};
+document.querySelector('#duplicate').onclick=()=>{devices=devices.filter(p=>p.index!==3);devices.push(radio(3));persist();};
+document.querySelector('#reload').onclick=()=>location.reload();
+document.querySelector('#legacy').onclick=()=>{storage.setItem('heli-lab.gamepad.preferred.v1','disabled');devices=[gamepad,radio(2)];persist();location.reload();};
+document.querySelector('#clear').onclick=()=>{Object.keys(memory).filter(k=>k.startsWith(prefix)).forEach(k=>memory.removeItem(k));location.reload();};
+persist();
+await import('/src/main.ts');
+</script></body></html>

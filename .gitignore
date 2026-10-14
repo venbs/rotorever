@@ -3,6 +3,7 @@ dist/
 .DS_Store
 *.log
 .venv-analysis/
+.venv-panorama/
 __pycache__/
 /analysis/
 /backups/
@@ -11,3 +12,9 @@ __pycache__/
 !.env.example
 *.jar
 *.fly
+# Original camera negatives stay local; only prepared map tiles are deployed.
+*.dng
+# User-enhanced 4K originals and reproducible reference exports stay local.
+/assets/newmap/
+/assets/maps/*/six-face-references/
+/assets/maps/*/six-face-references.zip

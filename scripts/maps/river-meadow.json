@@ -1,0 +1,41 @@
+{
+  "id": "river-meadow",
+  "name": "河畔草地飞场",
+  "source": "assets/maps/river-meadow/source.png",
+  "sourceSha256": "a971806529ec5084fd7f203a30b15aa9e654ac9627db2cbfc0b64d6d703f18a8",
+  "eyeHeight": 1.8,
+  "startDistance": 9,
+  "generation": {
+    "requestedModel": "gpt-image-2",
+    "reportedModel": null,
+    "backend": "Codex built-in image_gen",
+    "generatedAt": "2026-10-15",
+    "promptFile": "assets/maps/river-meadow/prompt.txt",
+    "promptSha256": "88ae6188badccfa2f364d54c3a9b3ff3c2a143d4c7254433508193aef7f054dd",
+    "requestedSize": [
+      3840,
+      1920
+    ],
+    "note": "Built-in response did not report the exact model id. Actual saved image is 1774 × 887; requested size is not a guarantee."
+  },
+  "calibration": {
+    "headingDegrees": 0,
+    "sunUV": [
+      0.8487184363157252,
+      0.2209469218474801
+    ],
+    "seamBlendDegrees": 4,
+    "poleBlendDegrees": 2,
+    "method": "Solar-disc centroid measured in generated source: (1505.13, 195.48) in zero-based pixels. Panorama centre looks into clear grass along +X; horizon near mid-height. Narrow rear seam and polar colour feather only.",
+    "scaleNote": "Generated fictional field. Eye height 1.8 m and spawn distance 9 m are scene assumptions; river distance is not measured and has no water collision."
+  },
+  "lighting": {
+    "sunColor": "#fffaf1",
+    "sunIntensity": 2.8,
+    "skyColor": "#cfe4ff",
+    "groundColor": "#71824a",
+    "hemisphereIntensity": 1.8,
+    "environmentIntensity": 0.45,
+    "shadowOpacity": 0.42
+  }
+}

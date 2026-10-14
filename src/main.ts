@@ -8,6 +8,11 @@ import { GamepadController, ProfileStore, type ProfileStorage } from './gamepad.
 import { GamepadPanel } from './gamepad-panel.ts';
 import { AircraftPanel } from './aircraft-panel.ts';
 import { applyAircraft, loadAircraft } from './aircraft-settings.ts';
+import { defaultField } from './field.ts';
+import { FieldAssets } from './field-assets.ts';
+import { FieldPanel } from './field-panel.ts';
+import { WelcomeState } from './release.ts';
+import { WelcomePanel } from './welcome-panel.ts';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="flight-view" aria-label="飞行场景">
@@ -16,8 +21,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <button id="menu-toggle" class="menu-toggle" aria-label="打开设置菜单" aria-expanded="false" aria-controls="menu-items"><span>MENU</span><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M7 9h9M2 13h14"/></svg></button>
       <div id="menu-items" class="menu-items" hidden>
         <button id="aircraft-settings"><span>机体设置</span><small>01</small></button>
-        <button disabled aria-disabled="true" title="暂未开放"><span>飞场设置</span><small>—</small></button>
-        <button id="controller-settings"><span>遥控器设置</span><small>02</small></button>
+        <button id="field-settings"><span>飞场设置</span><small>02</small></button>
+        <button id="controller-settings"><span>遥控器设置</span><small>03</small></button>
+        <button id="welcome-help"><span>使用介绍 / 更新</span><small>↗</small></button>
       </div>
     </nav>
     <div id="notice" class="notice" role="status" hidden></div>
@@ -49,9 +55,6 @@ catch (error) {
   throw error;
 }
 void world.loadModel();
-void world.loadField().then(quality => {
-  if (quality === 'unavailable') notify('飞场背景加载失败，请刷新重试。');
-});
 let noticeTimer = 0;
 function notify(message: string) {
   $('notice').textContent = message; $('notice').hidden = false;
@@ -60,6 +63,7 @@ function notify(message: string) {
 function resetFlight(motor: boolean) {
   controls.clear(); sim.reset(); input.collective = 0; input.motor = motor;
   capturePose(); clock.reset(); world.resetTrail();
+  world.groundCamera.snap(sim.state.position);
 }
 const gamepadStore = new ProfileStore(storage);
 const gamepad = new GamepadController(() => {
@@ -86,6 +90,20 @@ const gamepadPanel = new GamepadPanel(gamepad, gamepadStore, () => {
   openSettings(); input.motor = false; input.collective = 0;
 }, () => { controls.clear(); });
 $('controller-settings').onclick = () => gamepadPanel.open();
+const fieldAssets = new FieldAssets(import.meta.env.BASE_URL);
+const fieldPanel = new FieldPanel(fieldAssets, async map => {
+  const quality = await world.loadField(map, fieldAssets.source(map));
+  if (quality === 'unavailable' || quality === 'superseded') throw new Error('飞场未能加载，已保留当前场景。请重试。');
+  resetFlight(gamepad.output.motor ?? true);
+  if (quality === 'preview') notify('已切换飞场，高清画面加载失败，暂时显示预览。');
+}, openSettings);
+$('field-settings').onclick = () => fieldPanel.open();
+const welcomePanel = new WelcomePanel(new WelcomeState(storage), openSettings, () => gamepadPanel.open());
+$('welcome-help').onclick = () => welcomePanel.open();
+void world.loadField(defaultField, fieldAssets.source(defaultField)).then(quality => {
+  void fieldPanel.loadedDefault(quality !== 'unavailable');
+  if (quality === 'unavailable') notify('默认飞场加载失败，可在飞场设置中重试。');
+});
 
 function updateReadouts() {
   const s = sim.state, rpm = s.rotorSpeed * 30 / Math.PI;
@@ -106,7 +124,9 @@ document.addEventListener('visibilitychange', () => { last = performance.now(); 
 function frame(now: number) {
   const elapsed = Math.max(0, (now - last) / 1000); last = now;
   gamepad.poll(); gamepadPanel.update(now);
-  let alpha = clock.advance(elapsed, dt => {
+  const paused = fieldPanel.dialog.open || welcomePanel.dialog.open;
+  if (paused) clock.reset();
+  let alpha = paused ? 1 : clock.advance(elapsed, dt => {
     if (sim.state.crashed) return;
     if (gamepadPanel.dialog.open) {
       // Calibration can exercise every input, including the arming switch.
@@ -118,7 +138,7 @@ function frame(now: number) {
   if (sim.state.crashed) {
     resetFlight(gamepadPanel.dialog.open ? false : gamepad.output.motor ?? true); alpha = 1;
   }
-  controls.paint(); world.render(sim.state, previous, alpha);
+  controls.paint(); world.render(sim.state, previous, alpha, elapsed);
   if (now - uiLast > 100) { updateReadouts(); uiLast = now; }
   requestAnimationFrame(frame);
 }

@@ -1,0 +1,57 @@
+{
+  "id": "x5-grassland",
+  "name": "城市草地飞场",
+  "source": "IMG_20260312_105849_00_004.dng",
+  "capture": "2026-03-12 10:58:52",
+  "eyeHeight": 1.8,
+  "startDistance": 9,
+  "calibration": {
+    "focalScale": [
+      0.9016753727679349,
+      0.9062359008873081
+    ],
+    "secondLensRotationVector": [
+      0.012772105313617369,
+      -0.0013030248266151813,
+      0.014603476408921222
+    ],
+    "worldToCapture": [
+      [
+        0.8698774101202088,
+        0.15942540890648824,
+        0.466794205574102
+      ],
+      [
+        -0.12358678998185031,
+        0.9865865371151975,
+        -0.10664572248817641
+      ],
+      [
+        -0.47753491673859827,
+        0.0350791074293822,
+        0.87791221629353
+      ]
+    ],
+    "sunDirection": [
+      -0.5197361,
+      0.82009527,
+      0.23941207
+    ],
+    "method": "333 SIFT overlap matches; robust angular fit of focal scales and relative lens rotation; 189 building line segments for vertical leveling; open grass direction 28 degrees left of the second lens axis.",
+    "medianMatchErrorDegrees": 0.08624801,
+    "medianVerticalErrorDegrees": 0.05965445,
+    "sunElevationDegrees": 55.09433,
+    "sunAzimuthDegrees": 155.26724,
+    "scaleNote": "Eye height 1.8 m and start distance 9 m are estimates, not measurements. Sun is estimated from the photographed solar disc, not GPS or a compass."
+  },
+  "lighting": {
+    "sunColor": "#fffaf1",
+    "sunIntensity": 2.8,
+    "skyColor": "#cfe4ff",
+    "groundColor": "#7b794c",
+    "hemisphereIntensity": 1.8,
+    "environmentIntensity": 0.45,
+    "shadowOpacity": 0.5
+  },
+  "sourceSha256": "158d1da4d41e945b3c76c9a9a2690106c737fdf845b24cfdc2c0b05af72808da"
+}

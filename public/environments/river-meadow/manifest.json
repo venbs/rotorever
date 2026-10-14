@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "field": {
+    "id": "river-meadow",
+    "name": "河畔草地飞场",
+    "groundY": 0,
+    "pilot": {
+      "x": -9,
+      "y": 1.8,
+      "z": 0
+    },
+    "lightRay": {
+      "x": 0.37183453095588664,
+      "y": -0.7686136000586071,
+      "z": -0.5205499163324909
+    },
+    "backgroundYaw": 0,
+    "lighting": {
+      "sunColor": "#fffaf1",
+      "sunIntensity": 2.8,
+      "skyColor": "#cfe4ff",
+      "groundColor": "#71824a",
+      "hemisphereIntensity": 1.8,
+      "environmentIntensity": 0.45,
+      "shadowOpacity": 0.42
+    }
+  },
+  "source": {
+    "file": "source.png",
+    "size": [
+      1774,
+      887
+    ],
+    "bytes": 2949421,
+    "sha256": "a971806529ec5084fd7f203a30b15aa9e654ac9627db2cbfc0b64d6d703f18a8",
+    "kind": "generated",
+    "generation": {
+      "requestedModel": "gpt-image-2",
+      "reportedModel": null,
+      "backend": "Codex built-in image_gen",
+      "generatedAt": "2026-10-15",
+      "promptFile": "assets/maps/river-meadow/prompt.txt",
+      "promptSha256": "88ae6188badccfa2f364d54c3a9b3ff3c2a143d4c7254433508193aef7f054dd",
+      "requestedSize": [
+        3840,
+        1920
+      ],
+      "note": "Built-in response did not report the exact model id. Actual saved image is 1774 × 887; requested size is not a guarantee."
+    }
+  },
+  "processing": {
+    "projection": "equirectangular to Three.js image cubemap",
+    "colorSpace": "sRGB",
+    "generateMipmaps": false,
+    "sampling": "bilinear; periodic longitude; clamped poles",
+    "encoder": {
+      "pillow": "12.3.0",
+      "webp": "1.6.0"
+    },
+    "calibration": {
+      "headingDegrees": 0,
+      "sunUV": [
+        0.8487184363157252,
+        0.2209469218474801
+      ],
+      "seamBlendDegrees": 4,
+      "poleBlendDegrees": 2,
+      "method": "Solar-disc centroid measured in generated source: (1505.13, 195.48) in zero-based pixels. Panorama centre looks into clear grass along +X; horizon near mid-height. Narrow rear seam and polar colour feather only.",
+      "scaleNote": "Generated fictional field. Eye height 1.8 m and spawn distance 9 m are scene assumptions; river distance is not measured and has no water collision.",
+      "sunDirection": [
+        -0.37183453095588664,
+        0.7686136000586071,
+        0.5205499163324909
+      ],
+      "sunElevationDegrees": 50.229554067453584,
+      "sunAzimuthDegrees": 125.53863707366106
+    },
+    "quality": {
+      "sourcePixelsPerDegree": 4.927777777777778,
+      "sourcePixelsPer90Degrees": 443.5,
+      "standardFacesUpsampled": true,
+      "note": "2048px output faces preserve the project format, not 2048px of native angular detail. No AI super-resolution was applied.",
+      "seamMeanAbsoluteErrorBefore": 10.974821495678317,
+      "seamMeanAbsoluteErrorAfter": 0.0
+    }
+  },
+  "cubeOrder": [
+    "right",
+    "left",
+    "top",
+    "bottom",
+    "front",
+    "back"
+  ],
+  "tiers": {
+    "preview": {
+      "size": 256,
+      "quality": 72,
+      "files": [
+        {
+          "file": "preview/right.webp",
+          "bytes": 9444,
+          "sha256": "27bfdcad5a1b1bd24bf6ac3a3cf64d2a87316d376fbdbb254af2b985fdb38916"
+        },
+        {
+          "file": "preview/left.webp",
+          "bytes": 8918,
+          "sha256": "b1ae78a1ee135435697939ec38bb94ffd1f872ddade2a495d06f3b58c7e731aa"
+        },
+        {
+          "file": "preview/top.webp",
+          "bytes": 2908,
+          "sha256": "a63366c3e82899189b6c2fb2ac707fc8ea1c3ad31de798673ded1a0077cc4c78"
+        },
+        {
+          "file": "preview/bottom.webp",
+          "bytes": 23086,
+          "sha256": "16ccb12614011a6c482bfb5f09c50270e523a040f2561819e1edd75a13d022aa"
+        },
+        {
+          "file": "preview/front.webp",
+          "bytes": 9258,
+          "sha256": "722d8d4d8c9396b9bfb21c6c2e8876fb1f7ae2384a8381e25083d4f4f01cd921"
+        },
+        {
+          "file": "preview/back.webp",
+          "bytes": 8726,
+          "sha256": "86f461343445957c9f1d1d87b0ed486b11aafb032801c45937b46886c362f7f1"
+        }
+      ],
+      "bytes": 62340,
+      "gpuBytesRGBA8": 1572864
+    },
+    "standard": {
+      "size": 2048,
+      "quality": 92,
+      "files": [
+        {
+          "file": "standard/right.webp",
+          "bytes": 308302,
+          "sha256": "499b2fbd5650abb17b139b0c3b1c7f41f35d3a3dad9c385cb3acb3b4f1941f5e"
+        },
+        {
+          "file": "standard/left.webp",
+          "bytes": 286488,
+          "sha256": "6a8a40ff4c625f7c05af0669c15840a8e9c187f2b108f8aa6aca9eb2c536d557"
+        },
+        {
+          "file": "standard/top.webp",
+          "bytes": 121286,
+          "sha256": "6735b4c7fcb51d60ba58b31ed1199390af17acc5febcf49a66830f9912cde5d0"
+        },
+        {
+          "file": "standard/bottom.webp",
+          "bytes": 841760,
+          "sha256": "a91077225786282cb7c28fc95ed111a7b538ee23265d09f0b17a143d52c30dc3"
+        },
+        {
+          "file": "standard/front.webp",
+          "bytes": 312550,
+          "sha256": "6944ce64f35e929db71d110a53305d070f8790b9ef3bf86e2440feb56e1c92e4"
+        },
+        {
+          "file": "standard/back.webp",
+          "bytes": 292596,
+          "sha256": "be1077bc1f7068c508476be2297faa10801ab455169295566f8cef45ed303681"
+        }
+      ],
+      "bytes": 2162982,
+      "gpuBytesRGBA8": 100663296
+    }
+  }
+}

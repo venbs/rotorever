@@ -18,6 +18,26 @@ export interface PadProfile { version: 1; channels: Record<Channel, AxisMapping>
 export type MappedInput = Partial<Record<Channel, number>> & { motor?: boolean };
 export interface ProfileStorage { getItem(key: string): string | null; setItem(key: string, value: string): void }
 export const deviceKey = (pad: PadReading) => JSON.stringify([pad.id, pad.axes.length, pad.buttons.length, pad.mapping]);
+const connectionKey = (pad: PadReading) => JSON.stringify([pad.index, deviceKey(pad)]);
+
+/** Gamepad has no transmitter category. Prefer firmware USB identity over brand
+ * names; raw multi-axis HID is a fallback, not proof of its channel order. */
+export function radioRecognition(pad: PadReading): 'firmware' | 'multi-axis' | null {
+  if (pad.axes.length < 4) return null;
+  const firmware = /\b(?:edgetx|opentx|er9x|ersky9x)\b/i.test(pad.id)
+    || /\bvendor:\s*(?:0x)?1209\s+product:\s*(?:0x)?4f54\b/i.test(pad.id)
+    || /\b1209[:-]4f54\b/i.test(pad.id);
+  return firmware ? 'firmware' : pad.mapping === '' ? 'multi-axis' : null;
+}
+
+function validDeviceKey(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  try {
+    const key = JSON.parse(value);
+    return Array.isArray(key) && key.length === 4 && typeof key[0] === 'string'
+      && Number.isInteger(key[1]) && key[1] >= 0 && Number.isInteger(key[2]) && key[2] >= 0 && typeof key[3] === 'string';
+  } catch { return false; }
+}
 
 /** User-selected default: AETR, with collective on T and independent motor arming. */
 export function defaultProfile(pad: PadReading): PadProfile {
@@ -128,6 +148,8 @@ export class CalibrationCapture {
 export class ProfileStore {
   private storage: ProfileStorage | null;
   private preferredKey = 'heli-lab.gamepad.preferred.v1';
+  private knownKey = 'heli-lab.gamepad.known.v1';
+  private sessionDevices: string[] = [];
   constructor(storage: ProfileStorage | null) { this.storage = storage; }
   private key(pad: PadReading) { return `heli-lab.gamepad.v1:${encodeURIComponent(deviceKey(pad))}`; }
   load(pad: PadReading): PadProfile {
@@ -150,28 +172,37 @@ export class ProfileStore {
       return profileErrors(profile, pad).length ? null : profile;
     } catch { return null; }
   }
-  /** null: legacy/no preference; false: explicitly disabled; string: device identity. */
-  preferredDevice(): string | null | false {
+  /** Old permanent keyboard opt-outs no longer block newly connected radios. */
+  preferredDevice(): string | null {
     try {
       const value = this.storage?.getItem(this.preferredKey);
-      if (value === 'disabled') return false;
-      const key = JSON.parse(value ?? 'null');
-      return Array.isArray(key) && key.length === 4 && typeof key[0] === 'string'
-        && Number.isInteger(key[1]) && Number.isInteger(key[2]) && typeof key[3] === 'string' ? value! : null;
+      return validDeviceKey(value) ? value : null;
     } catch { return null; }
   }
-  disableAutoRestore() {
-    try { this.storage?.setItem(this.preferredKey, 'disabled'); } catch { /* Session disable still works. */ }
+  /** Most recently used first. Keep legacy preferences and each device's tune. */
+  knownDevices(): string[] {
+    let saved: string[] = [];
+    try {
+      const data: unknown = JSON.parse(this.storage?.getItem(this.knownKey) ?? 'null');
+      if (Array.isArray(data)) saved = data.filter(validDeviceKey).slice(0, 20);
+    } catch { /* Corrupt or unavailable storage must not prevent connection. */ }
+    const preferred = this.preferredDevice();
+    return [...new Set([...this.sessionDevices, ...(preferred ? [preferred] : []), ...saved])].slice(0, 20);
   }
   rememberDevice(pad: PadReading) {
-    try { this.storage?.setItem(this.preferredKey, deviceKey(pad)); } catch { /* Session selection still works. */ }
+    const key = deviceKey(pad);
+    this.sessionDevices = [key, ...this.knownDevices().filter(k => k !== key)].slice(0, 20);
+    try {
+      this.storage?.setItem(this.preferredKey, key);
+      this.storage?.setItem(this.knownKey, JSON.stringify(this.sessionDevices));
+    } catch { /* Session history still works when browser storage is blocked. */ }
   }
   save(pad: PadReading, profile: PadProfile): boolean {
     if (profileErrors(profile, pad).length) return false;
     try {
       if (!this.storage) return false;
       this.storage.setItem(this.key(pad), JSON.stringify(profile));
-      this.storage.setItem(this.preferredKey, deviceKey(pad));
+      this.rememberDevice(pad);
       return true;
     } catch { return false; }
   }
@@ -187,53 +218,69 @@ export class GamepadController {
   active = false;
   activeName = '';
   activeIndex: number | null = null;
+  automatic = false;
+  connectionStatus: 'waiting' | 'keyboard' | 'ambiguous' | 'select' | 'invalid' | 'connected' = 'waiting';
   private activeKey = '';
   private profile: PadProfile | null = null;
   private read: () => readonly (PadReading | null)[];
   private onLost: (message: string) => void;
   private store?: ProfileStore;
-  private restorePending = true;
   private restoreSignature = '';
   private restoreCandidate?: { index: number; key: string; profile: PadProfile };
   private reconnect?: { key: string; profile: PadProfile };
+  private suppressed = new Set<string>();
   constructor(read: () => readonly (PadReading | null)[], onLost: (message: string) => void, store?: ProfileStore) {
     this.read = read; this.onLost = onLost;
     this.store = store;
   }
   private restoreSavedDevice() {
-    if ((!this.store && !this.reconnect) || !this.restorePending) return;
+    if (!this.store && !this.reconnect) return;
     const signature = JSON.stringify(this.devices.map(p => [p.index, deviceKey(p)]));
     // Read/validate storage on device changes, not on every input frame. Browsers
     // may expose the radio only after its first button/stick interaction.
     if (signature !== this.restoreSignature) {
       this.restoreSignature = signature;
-      const preferred = this.reconnect?.key ?? this.store?.preferredDevice() ?? null;
+      const known = this.store?.knownDevices() ?? [];
       this.restoreCandidate = undefined;
-      if (preferred === false) { this.restorePending = false; return; }
-      const available = this.devices.filter(p => preferred === null || deviceKey(p) === preferred)
-        .map(pad => ({ pad, profile: this.reconnect?.profile ?? this.store?.loadSaved(pad) ?? null }));
-      // Prefer a known tune. A new radio with four flight axes is usable as soon
-      // as the browser exposes it; saving is never an activation prerequisite.
-      const saved = available.filter(p => p.profile !== null);
-      const candidates = (saved.length ? saved : available.filter(p => p.pad.axes.length >= 4))
-        .map(({ pad, profile }) => ({ index: pad.index, key: deviceKey(pad), profile: profile ?? defaultProfile(pad) }));
-      // Multiple radios need an explicit selection instead of arbitrary takeover.
-      if (candidates.length === 1) this.restoreCandidate = candidates[0];
+      const available = this.devices.filter(p => !this.suppressed.has(connectionKey(p)));
+      const candidates = available.map(pad => {
+        const key = deviceKey(pad), recent = known.indexOf(key);
+        const reconnect = this.reconnect?.key === key ? this.reconnect : undefined;
+        const profile = reconnect?.profile ?? this.store?.loadSaved(pad) ?? null;
+        const recognition = radioRecognition(pad);
+        const priority = reconnect ? 600 : recent >= 0 ? 500 - recent : profile ? 400
+          : recognition === 'firmware' ? 300 : recognition === 'multi-axis' ? 200 : 0;
+        return { index: pad.index, key, profile: profile ?? defaultProfile(pad), priority };
+      }).filter(p => p.priority > 0).sort((a, b) => b.priority - a.priority);
+      // Prefer the last used device AMONG connected devices, not an absent one.
+      // Equal candidates (including identical model IDs) need explicit selection.
+      if (candidates.length && (candidates.length === 1 || candidates[0].priority > candidates[1].priority)) {
+        this.restoreCandidate = candidates[0];
+      }
+      this.connectionStatus = candidates.length ? 'ambiguous' : available.length ? 'select'
+        : this.devices.length ? 'keyboard' : 'waiting';
     }
     const candidate = this.restoreCandidate;
     if (!candidate) return;
     const pad = this.devices.find(p => p.index === candidate.index && deviceKey(p) === candidate.key);
     if (!pad) return;
-    try { this.enable(pad, candidate.profile); }
-    catch { /* Wait for a valid first reading without overwriting saved calibration. */ }
+    try { this.enable(pad, candidate.profile, true); }
+    catch { this.connectionStatus = 'invalid'; /* Retry first samples, retaining saved calibration. */ }
   }
   poll() {
+    const previousDevices = this.devices;
     try {
       this.devices = this.read().filter((p): p is PadReading => Boolean(p?.connected));
       this.error = '';
     } catch {
       this.devices = [];
       this.error = '浏览器无法读取遥控器，请使用支持 Gamepad API 的浏览器打开页面';
+    }
+    // A manual keyboard choice lasts for the current connections. Unplug/replug
+    // or a page reload makes that device eligible again, without a Save button.
+    if (this.suppressed.size) {
+      const connected = new Set(this.devices.map(connectionKey));
+      for (const key of this.suppressed) if (!connected.has(key)) this.suppressed.delete(key);
     }
     if (!this.active) this.restoreSavedDevice();
     const previousMotor = this.output.motor ?? false;
@@ -246,14 +293,20 @@ export class GamepadController {
     }) || (this.profile.arm.source !== 'none' && !Number.isFinite(armSignal(pad, this.profile.arm))));
     if (!pad || invalid) {
       const reconnect = { key: this.activeKey, profile: structuredClone(this.profile) };
+      const lostConnection = JSON.stringify([this.activeIndex, this.activeKey]);
+      const previousConnections = new Set(previousDevices.map(connectionKey));
       this.deactivate();
-      this.reconnect = reconnect; this.restorePending = true; this.restoreSignature = '';
+      this.reconnect = reconnect;
+      // Stop on loss; another already-connected device must not take over.
+      // Identical model IDs are not unique units: retain their connection slots.
+      this.suppressed = new Set(this.devices.filter(p => deviceKey(p) !== reconnect.key
+        || (connectionKey(p) !== lostConnection && previousConnections.has(connectionKey(p)))).map(connectionKey));
       this.onLost(invalid ? '遥控器输入异常，电机已关闭。请检查通道设置。' : '遥控器已断开，电机已关闭。重新连接后自动恢复。');
       return;
     }
     this.output = mapPad(pad, this.profile, previousMotor);
   }
-  enable(pad: PadReading, profile: PadProfile) {
+  enable(pad: PadReading, profile: PadProfile, automatic = false) {
     const current = this.devices.find(p => p.index === pad.index && deviceKey(p) === deviceKey(pad));
     if (!current) throw new Error('设备已断开，请重新连接');
     const errors = profileErrors(profile, current);
@@ -261,8 +314,9 @@ export class GamepadController {
     if (channels.some(c => profile.channels[c].axis !== null && !Number.isFinite(current.axes[profile.channels[c].axis!]))) throw new Error('设备输入无效，请重新连接');
     if (profile.arm.source !== 'none' && !Number.isFinite(armSignal(current, profile.arm))) throw new Error('解锁通道输入无效');
     this.profile = structuredClone(profile);
-    this.restorePending = false; this.restoreCandidate = undefined; this.reconnect = undefined;
+    this.restoreCandidate = undefined; this.reconnect = undefined; this.suppressed.clear();
     this.activeIndex = current.index; this.activeKey = deviceKey(current); this.activeName = current.id;
+    this.automatic = automatic; this.connectionStatus = 'connected';
     this.active = true; this.output = mapPad(current, this.profile);
     this.store?.rememberDevice(current);
   }
@@ -270,8 +324,13 @@ export class GamepadController {
     return this.active && this.profile && pad.index === this.activeIndex && deviceKey(pad) === this.activeKey ? structuredClone(this.profile) : null;
   }
   private deactivate() {
-    this.restorePending = false; this.restoreCandidate = undefined; this.reconnect = undefined;
+    this.restoreSignature = ''; this.restoreCandidate = undefined; this.reconnect = undefined;
+    this.automatic = false; this.connectionStatus = 'waiting';
     this.active = false; this.activeIndex = null; this.activeName = ''; this.output = {}; this.profile = null;
   }
-  disable() { this.deactivate(); this.store?.disableAutoRestore(); }
+  disable() {
+    this.deactivate();
+    this.suppressed = new Set(this.devices.map(connectionKey));
+    this.connectionStatus = 'keyboard';
+  }
 }

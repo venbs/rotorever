@@ -1,0 +1,32 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>机体与飞控设置验证</title><body>
+<button id="aircraft-settings" style="margin:20px">机体设置</button>
+<output id="applied" style="display:block;margin:20px;white-space:pre-wrap">尚未应用</output>
+<script type="module">
+import '/src/style.css';
+import { AircraftPanel } from '/src/aircraft-panel.ts';
+import { aircraftStorageKey, defaultAircraft, loadAircraft, applyAircraft } from '/src/aircraft-settings.ts';
+import { HelicopterSimulation, defaultInput } from '/src/physics/simulator.ts';
+// Isolated per-tab storage survives reload; never reads/writes flight settings.
+const defaultsOnly = new URLSearchParams(location.search).has('defaults');
+const prefix = defaultsOnly ? 'rotorever.aircraft-defaults-test.' : 'rotorever.aircraft-ui-test.';
+const storage = { getItem: key => sessionStorage.getItem(prefix + key), setItem: (key, value) => sessionStorage.setItem(prefix + key, value) };
+if (!defaultsOnly && !storage.getItem(aircraftStorageKey)) {
+  const { aerodynamics, ...legacy } = defaultAircraft();
+  delete legacy.fbl.errorRotation; delete legacy.fbl.errorRotationGain;
+  legacy.mass = 4.35; legacy.rpm = 2250; legacy.fbl.pitch.p = 130;
+  storage.setItem(aircraftStorageKey, JSON.stringify(legacy));
+}
+const sim = new HelicopterSimulation(), input = defaultInput(), profile = loadAircraft(storage);
+function apply(profile) {
+  applyAircraft(sim, input, profile);
+  document.querySelector('#applied').textContent = 'TEST ONLY / 已应用到物理模型\n' + JSON.stringify({
+    profile, mass: sim.params.mass, rpm: input.targetRPM, pitchP: input.fbl.pitch.p,
+    collectiveGain: sim.params.rotor.collectiveGain, axialGain: sim.params.rotor.axialGain,
+    bodyDragScale: sim.params.bodyDragScale,
+    errorRotation: input.fbl.errorRotation, errorRotationGain: input.fbl.errorRotationGain,
+  }, null, 2);
+}
+apply(profile); new AircraftPanel(profile, storage, apply, () => {});
+document.querySelector('#aircraft-settings').click();
+</script></body></html>

@@ -1,19 +1,23 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { field } from '../field.ts';
-
-const faces = ['right', 'left', 'top', 'bottom', 'front', 'back'];
-const sunRay = new THREE.Vector3(field.lightRay.x, field.lightRay.y, field.lightRay.z).normalize();
+import { defaultField, field, type FieldMap } from '../field.ts';
+import { directFieldSource, type FieldTextureSource } from '../field-assets.ts';
 
 /** A photograph supplies all scenery; two triangles supply contact depth/shadow. */
 export class PhotoField {
-  readonly sun = new THREE.DirectionalLight(0xfffaf1, 2.6);
+  readonly sun = new THREE.DirectionalLight(field.lighting.sunColor, field.lighting.sunIntensity);
   quality: 'loading' | 'preview' | 'standard' | 'unavailable' = 'loading';
   private texture?: THREE.CubeTexture;
   private shadowCaster?: THREE.Mesh;
-  private receiverMaterial = new THREE.ShadowMaterial({ color: 0x101820, opacity: 0.6, depthWrite: false });
+  private receiverMaterial = new THREE.ShadowMaterial({ color: 0x101820, opacity: field.lighting.shadowOpacity, depthWrite: false });
   private scene: THREE.Scene;
   private renderer: THREE.WebGLRenderer;
+  private generation = 0;
+  private active = defaultField;
+  private sunRay = new THREE.Vector3(field.lightRay.x, field.lightRay.y, field.lightRay.z).normalize();
+  private hemisphere = new THREE.HemisphereLight();
+  private environment?: THREE.WebGLRenderTarget;
+  private ground: THREE.Mesh[] = [];
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -21,7 +25,8 @@ export class PhotoField {
     scene.fog = null;
     scene.background = new THREE.Color(0xa9c4dc);
     scene.backgroundRotation.y = field.backgroundYaw;
-    scene.add(new THREE.HemisphereLight(0xd9e8ff, 0x697746, 2.1));
+    scene.environmentRotation.y = field.backgroundYaw;
+    scene.add(this.hemisphere);
     scene.add(this.sun, this.sun.target);
 
     renderer.shadowMap.enabled = true;
@@ -51,31 +56,66 @@ export class PhotoField {
     receiver.receiveShadow = true;
     receiver.frustumCulled = false;
     scene.add(depth, receiver);
+    this.ground = [depth, receiver];
+    this.configure(defaultField);
   }
 
-  async load() {
+  private configure(map: FieldMap) {
+    this.active = map;
+    const { field: definition } = map, { lighting } = definition;
+    this.sunRay.set(definition.lightRay.x, definition.lightRay.y, definition.lightRay.z).normalize();
+    this.sun.color.set(lighting.sunColor); this.sun.intensity = lighting.sunIntensity;
+    this.hemisphere.color.set(lighting.skyColor); this.hemisphere.groundColor.set(lighting.groundColor);
+    this.hemisphere.intensity = lighting.hemisphereIntensity;
+    this.receiverMaterial.opacity = lighting.shadowOpacity;
+    this.ground.forEach(mesh => { mesh.position.y = definition.groundY; });
+    this.scene.backgroundRotation.y = this.scene.environmentRotation.y = definition.backgroundYaw;
+    this.scene.environmentIntensity = lighting.environmentIntensity;
+  }
+
+  async load(map: FieldMap = defaultField, source: FieldTextureSource = directFieldSource(map, import.meta.env.BASE_URL)) {
+    const generation = ++this.generation;
+    let applied = false;
     const loadTier = async (tier: 'preview' | 'standard') => {
-      const texture = await new THREE.CubeTextureLoader().loadAsync(
-        faces.map(face => `${import.meta.env.BASE_URL}environments/mva-almere/${tier}/${face}.webp`),
-      );
-      texture.name = `MVA-Almere ${tier}`;
+      const lease = await source(tier);
+      let texture: THREE.CubeTexture;
+      try {
+        if (generation !== this.generation) return;
+        texture = await new THREE.CubeTextureLoader().loadAsync(lease.urls);
+      } finally { lease.release(); }
+      if (generation !== this.generation) { texture.dispose(); return; }
+      texture.name = `${map.field.name} ${tier}`;
       // sRGB background is displayed without filmic re-tonemapping the photo.
       texture.colorSpace = THREE.SRGBColorSpace;
-      if (tier === 'preview') {
-        // Reflections use the tiny panorama once, never a full-resolution HDR bake.
-        const pmrem = new THREE.PMREMGenerator(this.renderer);
-        this.scene.environment = pmrem.fromCubemap(texture).texture;
-        this.scene.environmentIntensity = 0.5;
-        pmrem.dispose();
+      // A sky background never recedes into the distance. Bilinear sampling
+      // avoids a mip chain: six 2048px faces use 96 MiB instead of 128 MiB.
+      texture.generateMipmaps = false;
+      texture.minFilter = THREE.LinearFilter;
+      if (!applied) {
+        // A missing preview uses sunlight/hemisphere lighting, avoiding a costly
+        // full-resolution reflection bake and reflections from the previous map.
+        let environment: THREE.WebGLRenderTarget | undefined;
+        if (tier === 'preview') {
+          const pmrem = new THREE.PMREMGenerator(this.renderer);
+          try { environment = pmrem.fromCubemap(texture); }
+          catch (error) { texture.dispose(); throw error; }
+          finally { pmrem.dispose(); }
+        }
+        this.scene.environment = environment?.texture ?? null;
+        this.environment?.dispose();
+        this.environment = environment;
+        this.configure(map);
       }
       const old = this.texture;
       this.texture = texture;
       this.scene.background = texture;
       this.quality = tier;
+      applied = true;
       old?.dispose();
     };
     try { await loadTier('preview'); }
     catch { /* A failed preview must not prevent the full field from loading. */ }
+    if (generation !== this.generation) return 'superseded' as const;
     // Let the small panorama paint before starting the larger decode/upload.
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     try { await loadTier('standard'); }
@@ -83,7 +123,8 @@ export class PhotoField {
       if (!this.texture) this.quality = 'unavailable';
       console.warn('Field texture unavailable; retaining the available background.', error);
     }
-    return this.quality;
+    if (generation !== this.generation) return 'superseded' as const;
+    return applied ? this.quality : 'unavailable' as const;
   }
 
   /** Batch the exact body silhouette into one depth draw, not 70 mesh draws.
@@ -126,9 +167,9 @@ export class PhotoField {
 
   update(position: THREE.Vector3) {
     this.sun.target.position.copy(position);
-    this.sun.position.copy(position).addScaledVector(sunRay, -10);
-    const height = Math.max(0, position.y - field.groundY);
-    const depth = 14 + height / -sunRay.y;
+    this.sun.position.copy(position).addScaledVector(this.sunRay, -10);
+    const height = Math.max(0, position.y - this.active.field.groundY);
+    const depth = 14 + height / -this.sunRay.y;
     const camera = this.sun.shadow.camera;
     camera.far = Math.max(30, depth);
     camera.updateProjectionMatrix();

@@ -114,9 +114,10 @@ test('ground camera maintains its eye position and world horizon through flight,
   for (const target of [vec(0, 0.2, 0), vec(20, 8, -10), vec(-15, 20, 4), vec(100, 50, 0)]) {
     rig.track(target);
     assert.deepEqual(rig.camera.position.toArray(), [pilotEye.x, pilotEye.y, pilotEye.z]);
-    const direction = rig.camera.getWorldDirection(new Vector3());
-    const expected = new Vector3(target.x, target.y, target.z).sub(rig.camera.position).normalize();
-    assert.ok(direction.distanceTo(expected) < 1e-10);
+    rig.camera.updateMatrixWorld();
+    const screen = new Vector3(target.x, target.y, target.z).project(rig.camera);
+    assert.ok(Math.abs(screen.x) < 1e-10, 'horizontal bearing must follow immediately');
+    assert.ok(Math.abs(screen.y) <= .350001, 'vertical lag must keep the aircraft in frame');
     assert.deepEqual(rig.camera.up.toArray(), [0, 1, 0]);
   }
   rig.zoom(-1000); assert.equal(rig.camera.fov, 20);

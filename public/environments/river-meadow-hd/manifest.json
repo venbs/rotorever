@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "field": {
+    "id": "river-meadow-hd",
+    "name": "河畔草地飞场 · 高清",
+    "groundY": 0,
+    "pilot": {
+      "x": -9,
+      "y": 1.8,
+      "z": 0
+    },
+    "lightRay": {
+      "x": 0.3888371403138357,
+      "y": -0.7683686018715498,
+      "z": -0.508345718945796
+    },
+    "backgroundYaw": 0,
+    "lighting": {
+      "sunColor": "#fffaf1",
+      "sunIntensity": 2.8,
+      "skyColor": "#cfe4ff",
+      "groundColor": "#71824a",
+      "hemisphereIntensity": 1.8,
+      "environmentIntensity": 0.45,
+      "shadowOpacity": 0.42
+    }
+  },
+  "source": {
+    "kind": "user-refined-cubemap",
+    "files": [
+      {
+        "file": "assets/newmap/forward-GldtVqaHvat2bY.png",
+        "direction": "forward",
+        "projectFace": "left",
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 32846167,
+        "sha256": "2bf8f8395a4c7af77ea917f3b481be9974c7fde0850208fc68a3437a4a6e14d0",
+        "colorProfile": "assumed sRGB"
+      },
+      {
+        "file": "assets/newmap/right-Ms5KMDkqrOotng.png",
+        "direction": "right",
+        "projectFace": "front",
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 32083868,
+        "sha256": "8bc70bc0ba0cc4486a77d120794606755413b55acd4a423ad6eaef4808f94f3c",
+        "colorProfile": "assumed sRGB"
+      },
+      {
+        "file": "assets/newmap/rear-d8x5apkl6_eNV5.png",
+        "direction": "rear",
+        "projectFace": "right",
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 31861482,
+        "sha256": "ffe485fffe80cf43010ac50c52be2d56943d161a8da7d1ffc3457eddb4f8cffb",
+        "colorProfile": "assumed sRGB"
+      },
+      {
+        "file": "assets/newmap/left-udu1EESWo-hWrA.png",
+        "direction": "left",
+        "projectFace": "back",
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 32760444,
+        "sha256": "fa99d9ba22b6ab0f92cba0d40b36a20087df691d05144d687ecbb96ea4ad8061",
+        "colorProfile": "assumed sRGB"
+      },
+      {
+        "file": "assets/newmap/up-ugThDKJ1P48VZu.png",
+        "direction": "up",
+        "projectFace": "top",
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 18408119,
+        "sha256": "537fe37d15cca969a13efd02dba3b636328f0d364caa4766a2d3077073c30d53",
+        "colorProfile": "assumed sRGB"
+      },
+      {
+        "file": "assets/newmap/down-ldYrXfVCNyr3NA.png",
+        "direction": "down",
+        "projectFace": "bottom",
+        "size": [
+          4096,
+          4096
+        ],
+        "bytes": 49208342,
+        "sha256": "bffc443d8978737aa22d624f320a857e514aa103ade05296d384822fca82926b",
+        "colorProfile": "assumed sRGB"
+      }
+    ],
+    "bytes": 197168422,
+    "provenance": "User supplied six individually enhanced 4096×4096 PNGs in assets/newmap, derived from the river-meadow reference faces. Enhancement model/settings were not reported."
+  },
+  "processing": {
+    "projection": "direct six-face cubemap; no equirectangular intermediate",
+    "colorSpace": "sRGB",
+    "generateMipmaps": false,
+    "resize": "Lanczos downsample only",
+    "seamTreatment": "none; import test",
+    "encoder": {
+      "pillow": "12.3.0",
+      "webp": "1.6.0"
+    },
+    "calibration": {
+      "sunFace": "top",
+      "sunUV": [
+        0.7530277391389547,
+        0.8307954786983719
+      ],
+      "method": "Solar highlight centroid measured on the enhanced up face at pixel (3083.90, 3402.44). Input direction names mapped to project cube faces; no rotation, flip, crop or seam blending.",
+      "scaleNote": "Eye height 1.8 m, spawn distance 9 m are scene assumptions. Flat ground; river is visual background only.",
+      "sunDirection": [
+        -0.3888371403138357,
+        0.7683686018715498,
+        0.508345718945796
+      ],
+      "sunElevationDegrees": 50.20761590576461,
+      "sunAzimuthDegrees": 127.4126229487686
+    },
+    "seamAssessment": {
+      "status": "needs visual review / edge alignment",
+      "metric": "Mean absolute sRGB difference, 512px faces, two-pixel edge bands; not a geometric error measure.",
+      "edges": [
+        {
+          "a": "right:bottom",
+          "b": "bottom:right",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 39.848,
+          "meanRGBOffset": [
+            -10.486,
+            -10.53,
+            2.467
+          ]
+        },
+        {
+          "a": "bottom:bottom",
+          "b": "back:bottom",
+          "reverse": true,
+          "meanAbsoluteRGBDifference": 38.97,
+          "meanRGBOffset": [
+            13.431,
+            11.826,
+            11.451
+          ]
+        },
+        {
+          "a": "bottom:top",
+          "b": "front:bottom",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 38.02,
+          "meanRGBOffset": [
+            8.877,
+            7.429,
+            -6.37
+          ]
+        },
+        {
+          "a": "left:bottom",
+          "b": "bottom:left",
+          "reverse": true,
+          "meanAbsoluteRGBDifference": 36.536,
+          "meanRGBOffset": [
+            -10.77,
+            -10.954,
+            -6.237
+          ]
+        },
+        {
+          "a": "left:left",
+          "b": "back:right",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 21.36,
+          "meanRGBOffset": [
+            -5.64,
+            -2.37,
+            4.903
+          ]
+        },
+        {
+          "a": "left:right",
+          "b": "front:left",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 20.621,
+          "meanRGBOffset": [
+            5.848,
+            2.551,
+            -0.266
+          ]
+        },
+        {
+          "a": "right:right",
+          "b": "back:left",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 19.485,
+          "meanRGBOffset": [
+            -2.915,
+            -2.006,
+            8.352
+          ]
+        },
+        {
+          "a": "right:left",
+          "b": "front:right",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 19.118,
+          "meanRGBOffset": [
+            -4.419,
+            -3.805,
+            1.561
+          ]
+        },
+        {
+          "a": "right:top",
+          "b": "top:right",
+          "reverse": true,
+          "meanAbsoluteRGBDifference": 18.778,
+          "meanRGBOffset": [
+            -31.256,
+            -20.307,
+            -4.3
+          ]
+        },
+        {
+          "a": "top:bottom",
+          "b": "front:top",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 15.535,
+          "meanRGBOffset": [
+            23.654,
+            16.626,
+            5.431
+          ]
+        },
+        {
+          "a": "top:top",
+          "b": "back:top",
+          "reverse": true,
+          "meanAbsoluteRGBDifference": 11.238,
+          "meanRGBOffset": [
+            1.591,
+            -1.509,
+            -8.461
+          ]
+        },
+        {
+          "a": "left:top",
+          "b": "top:left",
+          "reverse": false,
+          "meanAbsoluteRGBDifference": 5.717,
+          "meanRGBOffset": [
+            -6.119,
+            -1.945,
+            -1.117
+          ]
+        }
+      ]
+    }
+  },
+  "cubeOrder": [
+    "right",
+    "left",
+    "top",
+    "bottom",
+    "front",
+    "back"
+  ],
+  "tiers": {
+    "preview": {
+      "size": 256,
+      "quality": 72,
+      "files": [
+        {
+          "file": "preview/right.webp",
+          "bytes": 14664,
+          "sha256": "ddf8495c2ca44d46cf410b3128550dc21a984c1ae858c22d72931a59b0717c00"
+        },
+        {
+          "file": "preview/left.webp",
+          "bytes": 15006,
+          "sha256": "da68fffa7cdd44e50d1a2edd3e7e96bfe88d67c4d03361ad2e8c6f29002bf5f5"
+        },
+        {
+          "file": "preview/top.webp",
+          "bytes": 5176,
+          "sha256": "c909509fd39e7a86253dbb3561d270533f5388ef6084c6ac973379b25c126aad"
+        },
+        {
+          "file": "preview/bottom.webp",
+          "bytes": 28328,
+          "sha256": "a6691cb0fdb8f7081d295f71af229cf8d4fb278c5b91623a1ef3004b7b2dbc60"
+        },
+        {
+          "file": "preview/front.webp",
+          "bytes": 15172,
+          "sha256": "90673ae7b3c1418e44562ee2c38f57f0f4470af1027fffa9c1a96dd94f99b13f"
+        },
+        {
+          "file": "preview/back.webp",
+          "bytes": 14886,
+          "sha256": "4fee928d2659e53e48cf3403f970847eaf6acf7fd6b6b9bfdb6d474c261841b8"
+        }
+      ],
+      "bytes": 93232,
+      "gpuBytesRGBA8": 1572864
+    },
+    "standard": {
+      "size": 2048,
+      "quality": 92,
+      "files": [
+        {
+          "file": "standard/right.webp",
+          "bytes": 1152512,
+          "sha256": "dd9ee833483b787ec52f6ffe81592a4f8c3e012cc0525c5edf54e35065ae93d3"
+        },
+        {
+          "file": "standard/left.webp",
+          "bytes": 1149474,
+          "sha256": "b005ba63f1730bcfd52999ba9e912f292e77f5c7b79afcd055af96614f2fb13c"
+        },
+        {
+          "file": "standard/top.webp",
+          "bytes": 285180,
+          "sha256": "2275c44776a36361ac220dd76c65d91af7b2f52e9420bcdc91bea6c6d269eea4"
+        },
+        {
+          "file": "standard/bottom.webp",
+          "bytes": 2225040,
+          "sha256": "222cbd56ace7cc893553811ebfb0f2f73191a5a2099669bec2b9296daf802dfd"
+        },
+        {
+          "file": "standard/front.webp",
+          "bytes": 1096590,
+          "sha256": "2a7b6c346c5d39dbef79c98018068458e9f2ad20039d47f312085b93835722a2"
+        },
+        {
+          "file": "standard/back.webp",
+          "bytes": 1321392,
+          "sha256": "59f2136a34611ff73af7453f104283002d7bb1d77b42e51a7f1c75d9664e4111"
+        }
+      ],
+      "bytes": 7230188,
+      "gpuBytesRGBA8": 100663296
+    }
+  }
+}

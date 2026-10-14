@@ -1,46 +1,54 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>全景地面与投影验证</title>
-<style>body{margin:0;color:#ebf3ff;background:#111a25;font:13px system-ui}header{padding:12px;display:flex;gap:8px;flex-wrap:wrap}button{padding:8px;color:inherit;background:#243144;border:1px solid #617085}#viewport{height:calc(100vh - 130px)}output{display:block;padding:10px;white-space:pre-wrap}</style>
-<header><button id="ground">地面</button><button id="hover">2 米悬停</button><button id="high">8 米悬停</button><button id="bank">倾斜机体</button><button id="occlude">地下遮挡</button><button id="sun">朝向太阳</button><button id="scan">环视接缝</button><button id="save">保存场景截图</button></header><div id="viewport"></div><output id="result">加载全景</output>
+<style>body{margin:0;height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;color:#ebf3ff;background:#111a25;font:13px system-ui}header{padding:12px;display:flex;gap:8px;flex-wrap:wrap}button,select{padding:8px;color:inherit;background:#243144;border:1px solid #617085}#viewport{min-height:0}output{display:block;padding:10px;white-space:pre-wrap}</style>
+<header><button id="ground">地面</button><button id="hover">2 米悬停</button><button id="high">8 米悬停</button><button id="bank">倾斜机体</button><button id="occlude">地下遮挡</button><button id="sun">朝向太阳</button><button id="scan">环视接缝</button><select id="view" aria-label="固定检查视角"><option value="follow">跟随机体</option><option value="forward">前方</option><option value="right">右侧</option><option value="rear">后方</option><option value="left">左侧</option><option value="up">上方</option><option value="down">下方</option><option value="seam-fr">接缝：前 / 右</option><option value="seam-rr">接缝：右 / 后</option><option value="seam-rl">接缝：后 / 左</option><option value="seam-lf">接缝：左 / 前</option><option value="seam-sky">接缝：前 / 天空</option><option value="seam-ground">接缝：前 / 脚下</option></select><button id="save">保存场景截图</button></header><div id="viewport"></div><output id="result">加载全景</output>
 <script type="module">
 import { FlightWorld } from '/src/scene/world.ts';
 import { HelicopterSimulation } from '/src/physics/simulator.ts';
 import { field, groundProjection } from '/src/field.ts';
 import { axisAngle, vec } from '/src/physics/math.ts';
-import { Vector3 } from 'three';
+import { Vector3, DefaultLoadingManager } from 'three';
+// Development-only failure injection: ?fail=preview | standard | all.
+const fail = new URLSearchParams(location.search).get('fail');
+if(fail) DefaultLoadingManager.setURLModifier(url=>url.includes('/environments/')&&(fail==='all'||url.includes(`/${fail}/`))?'data:image/webp;base64,AA==':url);
 const world = new FlightWorld(document.querySelector('#viewport'));
 await Promise.all([world.loadField(), world.loadModel()]);
 const state = new HelicopterSimulation().state;
 state.rotorSpeed=220;
 let mode='地面', scan=false, sun=false, frames=0, start=performance.now();
-const preset=(label,y,bank=0)=>{mode=label;state.position={x:0,y,z:0};state.attitude=axisAngle(vec(1,0,0),bank);scan=false;sun=false;};
+const view=document.querySelector('#view');
+let fixedDirection=null;
+const directions={forward:[1,0,0],right:[0,0,1],rear:[-1,0,0],left:[0,0,-1],up:[0,1,-.0001],down:[0,-1,.0001],'seam-fr':[1,0,1],'seam-rr':[-1,0,1],'seam-rl':[-1,0,-1],'seam-lf':[1,0,-1],'seam-sky':[1,1,0],'seam-ground':[1,-1,0]};
+view.onchange=()=>{fixedDirection=directions[view.value]??null;scan=false;sun=false;mode=view.selectedOptions[0].textContent;};
+const clearFixedView=()=>{fixedDirection=null;view.value='follow';};
+const preset=(label,y,bank=0)=>{mode=label;state.position={x:0,y,z:0};state.attitude=axisAngle(vec(1,0,0),bank);scan=false;sun=false;clearFixedView();};
 document.querySelector('#ground').onclick=()=>preset('地面',.142);
 document.querySelector('#hover').onclick=()=>preset('2 米悬停',2);
 document.querySelector('#high').onclick=()=>preset('8 米悬停',8);
 document.querySelector('#bank').onclick=()=>preset('倾斜机体',2,Math.PI*.4);
 document.querySelector('#occlude').onclick=()=>preset('地下遮挡',-2);
-document.querySelector('#sun').onclick=()=>{sun=true;scan=false;mode='朝向太阳';};
-document.querySelector('#scan').onclick=()=>{scan=!scan;sun=false;mode='环视接缝';};
+document.querySelector('#sun').onclick=()=>{sun=true;scan=false;clearFixedView();mode='朝向太阳';};
+document.querySelector('#scan').onclick=()=>{scan=!scan;sun=false;clearFixedView();mode='环视接缝';};
 document.querySelector('#save').onclick=()=>{
  world.renderer.render(world.scene,world.camera);
  world.renderer.domElement.toBlob(blob=>{
   if(!blob)return;
   const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download='mva-almere-preview.png';a.click();
+  a.href=url;a.download=`${field.id}-preview.png`;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
  },'image/png');
 };
 function frame(now){
  state.rotorPhase=now*.22;
  world.render(state,state,1);
- if(scan||sun){
+ if(scan||sun||fixedDirection){
    const eye=field.pilot;
    const t=now/4000;
-   world.camera.lookAt(sun?new Vector3(eye.x-field.lightRay.x,eye.y-field.lightRay.y,eye.z-field.lightRay.z):new Vector3(eye.x+10*Math.cos(t),eye.y+7*Math.sin(t*.43),eye.z+10*Math.sin(t)));
+   world.camera.lookAt(fixedDirection?new Vector3(eye.x+fixedDirection[0],eye.y+fixedDirection[1],eye.z+fixedDirection[2]):sun?new Vector3(eye.x-field.lightRay.x,eye.y-field.lightRay.y,eye.z-field.lightRay.z):new Vector3(eye.x+10*Math.cos(t),eye.y+7*Math.sin(t*.43),eye.z+10*Math.sin(t)));
    world.renderer.render(world.scene,world.camera);
  }
  frames++;
  const hit=groundProjection(state.position);
- document.querySelector('#result').textContent=`${mode} · 全景 ${world.field.quality}\n光线与地面交点 ${hit.x.toFixed(3)}, ${hit.y.toFixed(3)}, ${hit.z.toFixed(3)} m · ${world.renderer.info.render.calls} 绘制调用 · ${Math.round(frames*1000/(now-start))} FPS\n眼高 ${field.pilot.y} m · 飞行、遮挡和阴影地面 y=${field.groundY}`;
+ document.querySelector('#result').textContent=`${mode} · ${field.name} · 全景 ${world.field.quality}${fail?` · 模拟 ${fail} 加载失败`:''}\n光线与地面交点 ${hit.x.toFixed(3)}, ${hit.y.toFixed(3)}, ${hit.z.toFixed(3)} m · ${world.renderer.info.render.calls} 绘制调用 · ${Math.round(frames*1000/(now-start))} FPS\n眼高 ${field.pilot.y} m（估算） · 飞行、遮挡和阴影地面 y=${field.groundY}`;
  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

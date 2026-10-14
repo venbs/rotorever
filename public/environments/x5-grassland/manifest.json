@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "field": {
+    "id": "x5-grassland",
+    "name": "城市草地飞场",
+    "groundY": 0,
+    "pilot": {
+      "x": -9,
+      "y": 1.8,
+      "z": 0
+    },
+    "lightRay": {
+      "x": 0.5197361,
+      "y": -0.82009527,
+      "z": -0.23941207
+    },
+    "backgroundYaw": 0,
+    "lighting": {
+      "sunColor": "#fffaf1",
+      "sunIntensity": 2.8,
+      "skyColor": "#cfe4ff",
+      "groundColor": "#7b794c",
+      "hemisphereIntensity": 1.8,
+      "environmentIntensity": 0.45,
+      "shadowOpacity": 0.5
+    }
+  },
+  "source": {
+    "file": "IMG_20260312_105849_00_004.dng",
+    "camera": "Insta360 X5",
+    "capture": "2026-03-12 10:58:52",
+    "bytes": 142023422,
+    "size": [
+      11904,
+      5952
+    ],
+    "sha256": "158d1da4d41e945b3c76c9a9a2690106c737fdf845b24cfdc2c0b05af72808da",
+    "ownership": "User-supplied original field photograph"
+  },
+  "processing": {
+    "projection": "dual-fisheye MEI to Three.js image cubemap",
+    "gainMaps": 8,
+    "colorSpace": "sRGB",
+    "generateMipmaps": false,
+    "calibration": {
+      "focalScale": [
+        0.9016753727679349,
+        0.9062359008873081
+      ],
+      "secondLensRotationVector": [
+        0.012772105313617369,
+        -0.0013030248266151813,
+        0.014603476408921222
+      ],
+      "worldToCapture": [
+        [
+          0.8698774101202088,
+          0.15942540890648824,
+          0.466794205574102
+        ],
+        [
+          -0.12358678998185031,
+          0.9865865371151975,
+          -0.10664572248817641
+        ],
+        [
+          -0.47753491673859827,
+          0.0350791074293822,
+          0.87791221629353
+        ]
+      ],
+      "sunDirection": [
+        -0.5197361,
+        0.82009527,
+        0.23941207
+      ],
+      "method": "333 SIFT overlap matches; robust angular fit of focal scales and relative lens rotation; 189 building line segments for vertical leveling; open grass direction 28 degrees left of the second lens axis.",
+      "medianMatchErrorDegrees": 0.08624801,
+      "medianVerticalErrorDegrees": 0.05965445,
+      "sunElevationDegrees": 55.09433,
+      "sunAzimuthDegrees": 155.26724,
+      "scaleNote": "Eye height 1.8 m and start distance 9 m are estimates, not measurements. Sun is estimated from the photographed solar disc, not GPS or a compass."
+    }
+  },
+  "cubeOrder": [
+    "right",
+    "left",
+    "top",
+    "bottom",
+    "front",
+    "back"
+  ],
+  "tiers": {
+    "preview": {
+      "size": 256,
+      "quality": 72,
+      "files": [
+        {
+          "file": "preview/right.webp",
+          "bytes": 9590,
+          "sha256": "fd16348f86031ff0f2da9c4282c3a9fe24245b0ed4ea51a33dde17c0ba5c272c"
+        },
+        {
+          "file": "preview/left.webp",
+          "bytes": 6116,
+          "sha256": "614d58c57f7a0b74ae546d08e3a7d76329657f30bd77403cf441b708e91311eb"
+        },
+        {
+          "file": "preview/top.webp",
+          "bytes": 3092,
+          "sha256": "3ea3b3c96decb6bfd6c9223e7491023a6ef3e98bede87d7691adab91e20908f0"
+        },
+        {
+          "file": "preview/bottom.webp",
+          "bytes": 12192,
+          "sha256": "e5a8738898becfdbbf69f1a7d8453d6ccc0f7f055fa0c1b1b618ccdee0f1fa1f"
+        },
+        {
+          "file": "preview/front.webp",
+          "bytes": 12444,
+          "sha256": "eb3e5df400e77266a5e80c3078ffb700b641fcd18112733b6d947645c298695d"
+        },
+        {
+          "file": "preview/back.webp",
+          "bytes": 6794,
+          "sha256": "6a0eb2eb302ad3d30589c7338e662804e1dc09f702694fd9cdaaad05eaa170d9"
+        }
+      ],
+      "bytes": 50228,
+      "gpuBytesRGBA8": 1572864
+    },
+    "standard": {
+      "size": 2048,
+      "quality": 92,
+      "files": [
+        {
+          "file": "standard/right.webp",
+          "bytes": 576670,
+          "sha256": "e5b5201622ba21824156dc808b227350218b1e2441d16fc9bdb8dd3297b13146"
+        },
+        {
+          "file": "standard/left.webp",
+          "bytes": 472026,
+          "sha256": "f0c0f6518a988e9bb3081f39d4e357b54b3e0ceac70592b3a730853fda787649"
+        },
+        {
+          "file": "standard/top.webp",
+          "bytes": 169204,
+          "sha256": "10c3f1acd4b71e376d02816c452c05830fb052dc10f9c1ac9a2c53564af2a4ad"
+        },
+        {
+          "file": "standard/bottom.webp",
+          "bytes": 812494,
+          "sha256": "d487b8427074b818fdc87e3d3a1549c55f43c5424883db7740553828c60eeca5"
+        },
+        {
+          "file": "standard/front.webp",
+          "bytes": 810856,
+          "sha256": "1ab03134cb86898c5fc0d8a73a1f713e52edbd1d096c403a52b9bce1ec3fcb25"
+        },
+        {
+          "file": "standard/back.webp",
+          "bytes": 507512,
+          "sha256": "04e126445b9e76299072980c4509fec058221bcef1f86508e3584fdcf1dbf251"
+        }
+      ],
+      "bytes": 3348762,
+      "gpuBytesRGBA8": 100663296
+    }
+  }
+}

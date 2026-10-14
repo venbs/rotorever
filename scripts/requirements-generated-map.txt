@@ -1,0 +1,3 @@
+# Offline import only. No RAW decoder, API client or runtime dependency.
+numpy>=2,<3
+Pillow>=11,<13

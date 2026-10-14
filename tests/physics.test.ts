@@ -60,7 +60,9 @@ test('collective step increases climb and temporarily loads the rotor/governor',
   let minimumRPM = 2100;
   for (let i = 0; i < 250; i++) { sim.step(dt, input); minimumRPM = Math.min(minimumRPM, sim.state.rotorSpeed * 30 / Math.PI); }
   assert.ok(sim.state.velocity.y > 1 && sim.state.position.y > 2);
-  assert.ok(minimumRPM < 2080 && minimumRPM > 1700);
+  // Load precompensation removes the old PI-only sag, but the finite motor
+  // still loses some RPM while electrical torque catches up.
+  assert.ok(minimumRPM < 2099 && minimumRPM > 2050, `unexpected headspeed ${minimumRPM}`);
   run(sim, input, 5);
   close(sim.state.rotorSpeed * 30 / Math.PI, 2100, 5);
   assert.equal(sim.state.crashed, false);

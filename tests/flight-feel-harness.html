@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rotorever · 本地飞行体验对照</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#090f17;color:#eff4fc;font:13px system-ui;overflow:hidden}
+header{position:absolute;z-index:1;top:18px;left:18px;max-width:calc(100vw - 36px);padding:16px 18px;background:#09111bed;border:1px solid #6883a44d;box-shadow:0 8px 30px #0003}
+h1{font-size:16px;font-weight:500;margin:0 0 12px}nav{display:flex;gap:8px;flex-wrap:wrap}label{display:flex;align-items:center;gap:7px}
+button,select{font:inherit;color:inherit;background:#172437;border:1px solid #526881;padding:7px 10px}button{cursor:pointer}button:disabled{opacity:.35;cursor:default}button[aria-pressed=true]{border-color:#71aaff;color:#a9cbff}
+p{color:#b0bfd0;font-size:12px;line-height:1.6;max-width:550px;margin:12px 0 0}a{color:#a9cbff}#viewport{height:100dvh;width:100vw}
+#result{position:absolute;bottom:18px;left:18px;right:18px;padding:12px 16px;background:#09111bed;border:1px solid #6883a44d;white-space:pre-wrap;line-height:1.7;font-variant-numeric:tabular-nums}
+</style>
+<header><h1>LOCAL TEST / 飞行体验对照</h1><nav>
+<label>试验<select id="scenario"><option value="camera">相机持续跟踪</option><option value="collective">大总距阶跃</option></select></label>
+<button id="legacy" aria-pressed="false">旧定速器</button><button id="updated" aria-pressed="true">负载前馈</button><button id="repeat">重新播放</button>
+</nav><p id="description"></p><p>固定默认参数 · 不读取或改写遥控器设置 · <a href="/">返回本地试飞</a></p></header>
+<div id="viewport"></div><output id="result">加载本地模型与飞场…</output>
+<script type="module">
+import { Vector3 } from 'three';
+import { FlightWorld } from '/src/scene/world.ts';
+import { HelicopterSimulation, defaultInput, FixedStepClock } from '/src/physics/simulator.ts';
+import { applyAircraft, defaultAircraft } from '/src/aircraft-settings.ts';
+import { pilotEye } from '/src/scene/camera.ts';
+const world = new FlightWorld(document.querySelector('#viewport'));
+await Promise.all([world.loadModel(), world.loadField()]);
+let sim, input, clock, legacy = false, time = 0, minRPM = 2400, cameraTravel = 0, maxScreen = 0;
+let frames = 0, cpu = 0, startWall = 0, last = performance.now(), running = false, previousDirection = new Vector3();
+const result = document.querySelector('#result'), scenario = document.querySelector('#scenario');
+function cameraTarget(t) {
+  const yaw = Math.PI / 2 + .15 * Math.sin(1.5 * t), elevation = .08 * Math.sin(2 * Math.PI * 1.5 * t), distance = 15;
+  return new Vector3(pilotEye.x + distance * Math.sin(yaw) * Math.cos(elevation), pilotEye.y + distance * Math.sin(elevation), pilotEye.z - distance * Math.cos(yaw) * Math.cos(elevation));
+}
+function start() {
+  sim = new HelicopterSimulation(); input = defaultInput(); clock = new FixedStepClock();
+  if (legacy) { sim.params.motor.loadFeedforward = 0; sim.params.motor.responseTime = .075; }
+  const profile = defaultAircraft(); applyAircraft(sim, input, profile);
+  input.motor = true; input.collective = sim.hover(profile.rpm); sim.state.position.y = 2;
+  if (scenario.value === 'collective') input.collective += 10 / profile.pitch;
+  else Object.assign(sim.state.position, cameraTarget(0));
+  world.groundCamera.snap(sim.state.position);
+  world.camera.getWorldDirection(previousDirection);
+  time = 0; minRPM = profile.rpm; cameraTravel = 0; maxScreen = 0; frames = 0; cpu = 0;
+  startWall = last = performance.now(); running = true;
+  document.querySelector('#legacy').setAttribute('aria-pressed', String(legacy));
+  document.querySelector('#updated').setAttribute('aria-pressed', String(!legacy));
+  document.querySelector('#legacy').disabled = document.querySelector('#updated').disabled = scenario.value === 'camera';
+  document.querySelector('#description').textContent = scenario.value === 'camera'
+    ? '8 秒预设轨迹，水平持续紧跟；垂直以 100 ms 时间常数柔跟，允许上下浮动并保持机体在画面内。'
+    : '5 kg / 2400 RPM / ±12° / 电机 90%。悬停后增加 10° 总距，运行 1 秒。旧版对照关闭负载前馈、使用原电机响应时间。';
+}
+document.querySelector('#legacy').onclick = () => { legacy = true; start(); };
+document.querySelector('#updated').onclick = () => { legacy = false; start(); };
+document.querySelector('#repeat').onclick = start; scenario.onchange = start;
+function frame(now) {
+  const elapsed = Math.min(.1, Math.max(0, (now - last) / 1000)); last = now;
+  if (running) {
+    const begin = performance.now(), duration = scenario.value === 'camera' ? 8 : 1;
+    const stepTime = Math.min(elapsed, duration - time); time += stepTime;
+    if (scenario.value === 'camera') {
+      Object.assign(sim.state.position, cameraTarget(time));
+      sim.state.rotorPhase += sim.state.rotorSpeed * stepTime; sim.state.time = time;
+    } else {
+      clock.advance(stepTime, dt => { sim.step(dt, input); minRPM = Math.min(minRPM, sim.state.rotorSpeed * 30 / Math.PI); });
+    }
+    world.render(sim.state, sim.state, 1, stepTime);
+    const direction = world.camera.getWorldDirection(new Vector3());
+    cameraTravel += previousDirection.angleTo(direction) * 180 / Math.PI; previousDirection.copy(direction);
+    const screen = new Vector3(sim.state.position.x, sim.state.position.y, sim.state.position.z).project(world.camera);
+    maxScreen = Math.max(maxScreen, Math.abs(screen.x), Math.abs(screen.y));
+    frames++; cpu += performance.now() - begin;
+    if (time >= duration - 1e-8) running = false;
+    result.textContent = `${scenario.value === 'camera' ? '水平紧跟 · 垂直柔跟' : legacy ? '旧定速器' : '负载前馈'} · ${running ? '播放中' : '完成'} · ${time.toFixed(2)} s\n`
+      + (scenario.value === 'camera' ? `镜头累计转动 ${cameraTravel.toFixed(1)}° · 最大画面偏移 ${maxScreen.toFixed(3)}（1.0 为画面边缘）`
+        : `最低转速 ${minRPM.toFixed(0)} RPM · 当前垂直速度 ${sim.state.velocity.y.toFixed(2)} m/s · ${sim.state.crashed ? '异常碰撞' : '无碰撞'}`)
+      + `\n${Math.round(frames * 1000 / (now - startWall))} FPS · CPU ${ (cpu / frames).toFixed(2)} ms/帧 · ${world.renderer.info.render.calls} draw calls · 机位固定`;
+  }
+  requestAnimationFrame(frame);
+}
+start(); requestAnimationFrame(frame);
+</script></html>
