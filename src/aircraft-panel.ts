@@ -1,6 +1,7 @@
 import { copyFbl, defaultErrorRotation, errorRotationBounds, fblAxes, filterBounds, filterKeys, gainBounds, gainKeys } from './physics/fbl.ts';
 import { aerodynamicKeys, defaultAircraft, aircraftBounds, aircraftStorageKey, validAircraft, type AircraftProfile } from './aircraft-settings.ts';
-import type { ProfileStorage } from './gamepad.ts';
+import type { MappedInput, ProfileStorage } from './gamepad.ts';
+import { RateCurves } from './rate-curves.ts';
 
 const axisNames = { roll: '横滚', pitch: '俯仰', yaw: '尾舵' };
 const gainNames = { p: 'P', i: 'I', d: 'D', ff: 'FF %', b: 'B %' };
@@ -11,6 +12,7 @@ const tabs: [TabName, string][] = [['airframe', '机体参数'], ['flight', '飞
 export class AircraftPanel {
   readonly dialog: HTMLDialogElement;
   private profile: AircraftProfile;
+  private rateCurves: RateCurves;
   constructor(profile: AircraftProfile, storage: ProfileStorage | null, onApply: (profile: AircraftProfile) => void, onOpen: () => void) {
     this.profile = structuredClone(profile);
     const dialog = this.dialog = document.createElement('dialog');
@@ -62,14 +64,21 @@ export class AircraftPanel {
             <details class="fbl-advanced"><summary>滤波设置</summary><div class="setting-grid three">${filterKeys.map(key => `<label class="setting-field" for="fbl-${key}"><span>${filterNames[key]}</span><div class="field-value"><input id="fbl-${key}" type="number" min="${filterBounds.min}" max="${filterBounds.max}" step="1" required /><span>Hz</span></div></label>`).join('')}</div><p class="setting-note">参数采用本模拟器尺度，不能直接照搬真实飞控。P 为 s⁻¹，I 为 s⁻²，D 为无量纲；FF / B 为百分比。</p></details>
           </section>
           <section id="panel-rates" role="tabpanel" aria-labelledby="tab-rates" hidden>
-            <div class="section-caption"><span>03 / RATES & PITCH</span><span>常规 Expo</span></div>
-            <div class="setting-grid">${numberField('cyclic', '横滚 / 俯仰', '°/s')}${numberField('yaw', '尾舵', '°/s')}${numberField('expo', 'Expo', '%')}${numberField('pitch', '集体螺距', '± °')}</div>
-            <p class="setting-note">Expo 柔化中杆，满杆仍达到设定速率。集体螺距正负对称，零杆对应零螺距。</p>
+            <div class="rates-layout">
+              <div class="rates-parameters">
+                <div class="section-caption"><span>03 / RATES & PITCH</span><span>常规 Expo</span></div>
+                <div class="setting-grid">${numberField('cyclic', '横滚 / 俯仰', '°/s')}${numberField('yaw', '尾舵', '°/s')}${numberField('expo', 'Expo', '%')}${numberField('pitch', '集体螺距', '± °')}</div>
+                <p class="setting-note">Expo 柔化中杆，满杆速率不变。<br>集体螺距线性输出，不受 Expo 影响。</p>
+              </div>
+              <div class="rates-curves"></div>
+            </div>
           </section>
         </div>
         <footer class="dialog-footer"><span id="aircraft-message" role="status">设置保存在本机</span><button type="submit" class="primary">应用设置 <span aria-hidden="true">↗</span></button></footer>
       </form>`;
     document.body.append(dialog);
+    this.rateCurves = new RateCurves(dialog.querySelector('.rates-curves')!);
+    for (const key of ['cyclic', 'yaw', 'expo', 'pitch']) this.field(`aircraft-${key}`).addEventListener('input', () => this.updateRateCurves());
     const form = dialog.querySelector<HTMLFormElement>('form')!;
     this.field('aircraft-motorTorque').oninput = () => this.updateMotorTorque();
     dialog.querySelector<HTMLButtonElement>('#aircraft-close')!.onclick = () => dialog.close();
@@ -119,7 +128,11 @@ export class AircraftPanel {
       onOpen(); this.fill(); this.message('设置保存在本机'); dialog.showModal();
     };
   }
+  updateInput(input: MappedInput | null) {
+    if (this.dialog.open && this.dialog.dataset.activeTab === 'rates') this.rateCurves.updateInput(input);
+  }
   private selectTab(key: TabName) {
+    this.dialog.dataset.activeTab = key;
     for (const [name] of tabs) {
       const selected = name === key, button = this.dialog.querySelector<HTMLButtonElement>(`#tab-${name}`)!;
       button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1;
@@ -147,6 +160,14 @@ export class AircraftPanel {
     this.fillAerodynamics(p.aerodynamics);
     this.field('aircraft-cyclic').value = String(p.rates.cyclic); this.field('aircraft-yaw').value = String(p.rates.yaw);
     this.field('aircraft-expo').value = String(p.rates.expo * 100); this.fillFbl(p.fbl);
+    this.updateRateCurves();
+  }
+  private updateRateCurves() {
+    const valid = ['cyclic', 'yaw', 'expo', 'pitch'].every(key => this.field(`aircraft-${key}`).validity.valid);
+    this.rateCurves.update(valid ? {
+      rates: { cyclic: this.value('aircraft-cyclic'), yaw: this.value('aircraft-yaw'), expo: this.value('aircraft-expo') / 100 },
+      pitch: this.value('aircraft-pitch'),
+    } : null);
   }
   private updateMotorTorque() {
     const value = this.value('aircraft-motorTorque');

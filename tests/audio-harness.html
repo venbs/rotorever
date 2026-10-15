@@ -1,0 +1,70 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>飞行声音验收</title>
+<style>body{margin:24px;background:#10151d;color:#c8d7e9;font:14px system-ui}nav{display:flex;flex-wrap:wrap;gap:10px}button{padding:10px;background:#21354c;color:inherit;border:1px solid #547594;border-radius:3px}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}h1{font-size:20px;font-weight:500}</style>
+<h1>飞行声音验收</h1><nav><button id="start">启动声音</button><button id="auto">自动验收</button><button id="face">主桨正对</button><button id="edge">主桨侧对</button><button id="near">主桨近处</button><button id="far">主桨远处</button><button id="piro">尾桨自旋</button><button id="smack">实际抽螺距</button><button id="yaw">猛烈尾舵换向</button><button id="yaw-light">轻微打尾舵</button><button id="yaw-slow">缓慢大幅打尾舵</button><button id="pause">暂停 / 继续</button><button id="stop">关闭声音</button></nav><pre id="checks"></pre><pre id="result">等待启用</pre>
+<script type="module">
+import { HelicopterAudio } from '/src/audio/engine.ts';
+import { defaultAudioProfile } from '/src/audio/settings.ts';
+import { HelicopterSimulation, defaultInput, FixedStepClock } from '/src/physics/simulator.ts';
+import { applyAircraft, defaultAircraft } from '/src/aircraft-settings.ts';
+import { axisAngle, identity, vec } from '/src/physics/math.ts';
+// Test-only meter: observe the actual final output, without adding another audible path.
+const NativeContext=window.AudioContext;
+let meter;
+window.AudioContext=class extends NativeContext {
+  constructor(options){super(options);meter=this.createAnalyser();meter.fftSize=2048;}
+  createWaveShaper(){const node=super.createWaveShaper();node.connect(meter);return node;}
+};
+const profile=defaultAudioProfile();profile.volume=10;
+const audio=new HelicopterAudio(profile,'/audio/'),sim=new HelicopterSimulation(),input=defaultInput(),clock=new FixedStepClock();
+applyAircraft(sim,input,defaultAircraft());input.motor=true;
+let trim=sim.hover(input.targetRPM);input.collective=trim;sim.state.position.y=1000;
+const camera={position:vec(-9,1.8,0),attitude:axisAngle(vec(0,1,0),-Math.PI/2)};
+let mode='edge',began=0,last=performance.now(),paused=false,tailMin=Infinity,tailMax=0,enabled=false;
+const waveform=new Float32Array(2048);
+function choose(next){
+  mode=next;began=performance.now();tailMin=Infinity;tailMax=0;audio.reset();
+  trim=sim.hover(input.targetRPM);sim.state.position.y=1000;input.collective=trim;input.yaw=0;clock.reset();
+  for(const key of Object.keys(profile.enabled))profile.enabled[key]=key===(next==='piro'||next.startsWith('yaw')?'tail':'main');
+  audio.setProfile(profile);
+}
+document.getElementById('start').onclick=async()=>{profile.soundEnabled=true;audio.setProfile(profile);await audio.unlock();enabled=true;choose(mode);};
+for(const key of ['face','edge','near','far','piro','smack','yaw','yaw-light','yaw-slow'])document.getElementById(key).onclick=()=>choose(key);
+document.getElementById('pause').onclick=()=>{paused=!paused;audio.setPaused(paused);};
+document.getElementById('stop').onclick=()=>{profile.soundEnabled=false;audio.setProfile(profile);enabled=false;};
+document.getElementById('auto').onclick=async()=>{
+  const checks=document.getElementById('checks');checks.textContent='验收中';checks.dataset.complete='false';
+  profile.soundEnabled=true;audio.setProfile(profile);await audio.unlock();enabled=true;
+  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const measure=async()=>{await wait(220);let sum=0;for(let i=0;i<12;i++){meter.getFloatTimeDomainData(waveform);sum+=waveform.reduce((s,x)=>s+x*x,0)/waveform.length;await wait(20);}return Math.sqrt(sum/12);};
+  const r={};
+  for(const key of ['face','edge','near','far']){choose(key);r[key]={rms:await measure(),gains:audio.diagnostics.geometry.gains};}
+  choose('piro');await wait(1500);r.piro={range:[tailMin,tailMax],events:audio.diagnostics.tailEvents};
+  const before=audio.diagnostics;choose('smack');await wait(1100);r.smack={events:audio.diagnostics.mainEvents-before.mainEvents,active:audio.diagnostics.activeMain};
+  const beforeYaw=audio.diagnostics;choose('yaw');await wait(1900);r.yaw={events:audio.diagnostics.tailEvents-beforeYaw.tailEvents,active:audio.diagnostics.activeTail};
+  const beforeLight=audio.diagnostics;choose('yaw-light');await wait(1900);r.yawLight={events:audio.diagnostics.tailEvents-beforeLight.tailEvents,active:audio.diagnostics.activeTail};
+  const beforeSlow=audio.diagnostics;choose('yaw-slow');await wait(3900);r.yawSlow={events:audio.diagnostics.tailEvents-beforeSlow.tailEvents,active:audio.diagnostics.activeTail};
+  audio.setPaused(true);paused=true;r.paused={rms:await measure(),...audio.diagnostics};
+  audio.setPaused(false);paused=false;choose('edge');r.resumed={rms:await measure(),...audio.diagnostics};
+  profile.soundEnabled=false;audio.setProfile(profile);enabled=false;r.stopped={rms:await measure(),...audio.diagnostics};
+  checks.textContent=JSON.stringify(r,null,2);checks.dataset.complete='true';
+};
+document.addEventListener('visibilitychange',()=>audio.setBackground(document.hidden));
+function frame(now){
+  const elapsed=Math.min(.1,(now-last)/1000);last=now;const t=(now-began)/1000;
+  if(mode==='smack')input.collective=t<.2?trim:t<.4?.9:trim;
+  const yawMode=mode.startsWith('yaw'),amplitude=mode==='yaw-light'?.15:.8;
+  const yawTarget=t<.2?0:t<(mode==='yaw-slow'?1.4:.6)?amplitude:t<(mode==='yaw-slow'?3:1)?-amplitude:0;
+  if(!paused&&(mode==='smack'||yawMode))clock.advance(elapsed,dt=>{
+    if(yawMode)input.yaw=mode==='yaw-slow'?input.yaw+Math.max(-dt/.6,Math.min(dt/.6,yawTarget-input.yaw)):yawTarget;
+    sim.step(dt,input);audio.observeFlight(sim.state,sim.params,dt);
+  });
+  const pose={position:vec(mode==='near'?-6:mode==='far'?45:0,1.8,0),attitude:mode==='piro'?axisAngle(vec(0,1,0),t*Math.PI*2):
+    ['face','near','far'].includes(mode)?axisAngle(vec(0,0,1),Math.PI/2):identity()};
+  audio.render(sim.state,sim.params,pose,camera);
+  const d=audio.diagnostics;if(mode==='piro'){tailMin=Math.min(tailMin,d.geometry.distances.tail);tailMax=Math.max(tailMax,d.geometry.distances.tail);}
+  let rms=0,peak=0;if(meter){meter.getFloatTimeDomainData(waveform);for(const v of waveform){rms+=v*v;peak=Math.max(peak,Math.abs(v));}rms=Math.sqrt(rms/waveform.length);}
+  document.getElementById('result').textContent=JSON.stringify({mode,enabled,paused,rms,peak,tailRange:mode==='piro'?[tailMin,tailMax]:null,...d},null,2);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></html>

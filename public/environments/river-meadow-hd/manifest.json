@@ -354,5 +354,12 @@
       "bytes": 7230188,
       "gpuBytesRGBA8": 100663296
     }
+  },
+  "thumbnail": {
+    "file": "thumbnail.webp",
+    "width": 640,
+    "height": 400,
+    "bytes": 72688,
+    "sha256": "bcb0f4cf6cb2cf426ec66da096f273b6e8d070fc980bc601b99f5aa03c97217a"
   }
 }

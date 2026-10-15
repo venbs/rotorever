@@ -1,4 +1,4 @@
-import { defaultField, fields, fieldDownloadBytes, type FieldMap } from './field.ts';
+import { defaultField, fields, fieldDownloadBytes, fieldThumbnailURL, type FieldMap } from './field.ts';
 import { FieldAssets } from './field-assets.ts';
 
 const megabytes = (bytes: number) => `${(bytes / 1_000_000).toFixed(2)} MB`;
@@ -24,8 +24,15 @@ export class FieldPanel {
       <div class="field-body"><p class="field-intro">每次启动进入默认飞场。其他地图，下载一次即可在本机切换。</p>
       <div class="field-list">${fields.map((map, index) => `
         <article class="field-card" data-map="${map.field.id}" aria-labelledby="field-name-${index}">
-          <div class="field-card-heading"><span class="field-number" aria-hidden="true">0${index + 1}</span><div><h3 id="field-name-${index}">${map.field.name}</h3><p>${map.description}</p></div><span class="field-tag">${map.tag}</span></div>
-          <div class="field-card-bottom"><div><span class="field-size">${megabytes(fieldDownloadBytes(map))}${index === 0 ? ' · 默认飞场' : ''}</span><p class="field-state" role="status"></p></div><button class="field-action" aria-describedby="field-name-${index}"></button></div>
+          <div class="field-thumbnail">
+            <span class="field-thumbnail-fallback" aria-hidden="true">飞场预览</span>
+            <img data-src="${fieldThumbnailURL(map, import.meta.env.BASE_URL)}" width="${map.thumbnail.width}" height="${map.thumbnail.height}" alt="${map.field.name}场景预览" loading="lazy" decoding="async">
+            <span class="field-number" aria-hidden="true">0${index + 1}</span><span class="field-tag">${map.tag}</span>
+          </div>
+          <div class="field-card-content">
+            <div class="field-card-heading"><h3 id="field-name-${index}">${map.field.name}</h3><p>${map.description}</p></div>
+            <div class="field-card-bottom"><span class="field-size">${megabytes(fieldDownloadBytes(map))}${index === 0 ? ' · 默认飞场' : ''}</span><p class="field-state" role="status"></p><button class="field-action" aria-describedby="field-name-${index}"></button></div>
+          </div>
           <progress max="100" value="0" aria-label="${map.field.name}下载进度" hidden></progress>
         </article>`).join('')}</div>
         <p class="field-storage-note">地图保存在当前浏览器。清理网站数据后，需重新下载。</p>
@@ -36,11 +43,24 @@ export class FieldPanel {
     dialog.querySelector<HTMLButtonElement>('.field-done')!.onclick = () => dialog.close();
     fields.forEach(map => {
       this.card(map).querySelector<HTMLButtonElement>('.field-action')!.onclick = () => { void this.act(map); };
+      const image = this.card(map).querySelector<HTMLImageElement>('img')!;
+      image.onerror = () => {
+        image.hidden = true;
+        this.card(map).querySelector('.field-thumbnail-fallback')!.textContent = '预览暂不可用';
+      };
       this.render(map);
     });
   }
 
-  open() { this.onOpen(); this.dialog.showModal(); void this.refresh(); }
+  open() {
+    this.onOpen(); this.dialog.showModal();
+    // Assigning src only here prevents thumbnail requests during initial startup.
+    this.dialog.querySelectorAll<HTMLImageElement>('img[data-src]').forEach(image => {
+      image.src = image.dataset.src!;
+      delete image.dataset.src;
+    });
+    void this.refresh();
+  }
   async loadedDefault(ok: boolean) {
     this.initialLoading = false; this.initialFailed = !ok;
     await this.refresh();

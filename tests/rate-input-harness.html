@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>通道曲线输入验证</title><body><div id="app"></div>
+<script type="module">
+// Full application input path, with disposable storage and synthetic HID only.
+import { ProfileStore, defaultProfile } from '/src/gamepad.ts';
+const memory = new Map([['rotorever.welcome.completed', '1']]);
+const storage = { getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value) };
+const radio = { id: 'Rate test TX (Vendor: 1209 Product: 4f54)', index: 0, connected: true, mapping: '', axes: [0, 0, 0, 0, -1, -1], buttons: [] };
+let devices = [];
+if (new URLSearchParams(location.search).has('calibrated')) {
+  const profile = defaultProfile(radio);
+  profile.channels.roll = { axis: 1, inverted: true, deadzone: 0, min: -.8, center: -.2, max: .6 };
+  profile.channels.pitch.axis = 0;
+  profile.channels.yaw.axis = null;
+  new ProfileStore(storage).save(radio, profile);
+  radio.axes.splice(0, 4, .5125, -.5125, .5, 1); devices = [radio];
+}
+Object.defineProperty(window, 'localStorage', { value: storage });
+Object.defineProperty(navigator, 'getGamepads', { value: () => devices });
+await import('/src/main.ts');
+const toolbar = document.createElement('div');
+toolbar.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;padding:0;font-size:10px;max-width:480px;background:#111d2a';
+const actions = {
+  '连接 / 回中': () => { radio.axes.splice(0, 4, 0, 0, 0, 0); devices = [radio]; },
+  '四通道打杆': () => { radio.axes.splice(0, 4, .5125, -.5125, .5, 1); devices = [radio]; },
+  '断开': () => { devices = []; },
+  '反向 / 校准配置': () => { location.search = '?calibrated'; },
+  '隐藏测试工具': () => toolbar.remove(),
+};
+for (const [name, action] of Object.entries(actions)) {
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = name; button.onclick = action; toolbar.append(button);
+}
+document.querySelector('#aircraft-dialog .dialog-head').append(toolbar);
+document.querySelector('#aircraft-settings').click();
+document.querySelector('#tab-rates').click();
+</script></body></html>

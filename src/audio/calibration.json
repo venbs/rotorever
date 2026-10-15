@@ -1,0 +1,22 @@
+{
+  "source": "acoustic-lab-v13",
+  "savedAt": "2026-10-15",
+  "reference": { "rpm": 1940, "load": 38, "yaw": 68, "mainSpeed": 100 },
+  "profile": {
+    "soundEnabled": true,
+    "volume": 20,
+    "channelVolumes": { "motor": 130, "gear": 40, "belt": 130, "main": 90, "tail": 100 },
+    "enabled": { "motor": true, "gear": true, "belt": true, "main": true, "tail": true },
+    "mainTransients": true,
+    "mainImpact": 75,
+    "mainCrisp": 56,
+    "transients": true,
+    "impact": 200,
+    "dynamic": 100,
+    "pitchShift": 1.5,
+    "tailBurstPitch": 0,
+    "tailVoice": "hybrid",
+    "tailDecay": 0.6,
+    "mainDirectivity": 100
+  }
+}

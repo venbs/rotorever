@@ -13,6 +13,9 @@ import { FieldAssets } from './field-assets.ts';
 import { FieldPanel } from './field-panel.ts';
 import { WelcomeState } from './release.ts';
 import { WelcomePanel } from './welcome-panel.ts';
+import { HelicopterAudio } from './audio/engine.ts';
+import { loadAudioProfile } from './audio/settings.ts';
+import { SoundPanel } from './audio/panel.ts';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="flight-view" aria-label="飞行场景">
@@ -23,6 +26,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         <button id="aircraft-settings"><span>机体设置</span><small>01</small></button>
         <button id="field-settings"><span>飞场设置</span><small>02</small></button>
         <button id="controller-settings"><span>遥控器设置</span><small>03</small></button>
+        <button id="sound-settings"><span>声音设置</span><small>04</small></button>
         <button id="welcome-help"><span>使用介绍 / 更新</span><small>↗</small></button>
       </div>
     </nav>
@@ -41,6 +45,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 let storage: ProfileStorage | null = null;
 try { storage = window.localStorage; } catch { /* Settings work without persistence. */ }
 const sim = new HelicopterSimulation(parameters);
+const audio = new HelicopterAudio(loadAudioProfile(storage), `${import.meta.env.BASE_URL}audio/`);
 const input = defaultInput();
 const aircraftProfile = loadAircraft(storage);
 applyAircraft(sim, input, aircraftProfile);
@@ -64,6 +69,7 @@ function resetFlight(motor: boolean) {
   controls.clear(); sim.reset(); input.collective = 0; input.motor = motor;
   capturePose(); clock.reset(); world.resetTrail();
   world.groundCamera.snap(sim.state.position);
+  audio.reset(); audio.observeFlight(sim.state, sim.params, 0);
 }
 const gamepadStore = new ProfileStore(storage);
 const gamepad = new GamepadController(() => {
@@ -85,7 +91,14 @@ menu.addEventListener('focusout', e => { if (!menu.contains(e.relatedTarget as N
 menu.addEventListener('keydown', e => { if (e.key === 'Escape') { toggle.focus(); showMenu(false); } });
 document.addEventListener('pointerdown', e => { if (!menu.contains(e.target as Node)) showMenu(false); });
 function openSettings() { showMenu(false); controls.clear(); }
-new AircraftPanel(aircraftProfile, storage, profile => applyAircraft(sim, input, profile), openSettings);
+const soundPanel = new SoundPanel(loadAudioProfile(storage), audio, storage, openSettings);
+$('sound-settings').onclick = () => soundPanel.open();
+// Browser audio unlock is tied to the first real interaction, including the welcome dialog.
+const unlockAudio = () => { void audio.unlock(); };
+document.addEventListener('pointerdown', unlockAudio, { capture: true });
+document.addEventListener('keydown', event => { if (!event.repeat && !event.metaKey && !event.ctrlKey) unlockAudio(); }, { capture: true });
+document.addEventListener('visibilitychange', () => audio.setBackground(document.hidden));
+const aircraftPanel = new AircraftPanel(aircraftProfile, storage, profile => applyAircraft(sim, input, profile), openSettings);
 const gamepadPanel = new GamepadPanel(gamepad, gamepadStore, () => {
   openSettings(); input.motor = false; input.collective = 0;
 }, () => { controls.clear(); });
@@ -124,7 +137,9 @@ document.addEventListener('visibilitychange', () => { last = performance.now(); 
 function frame(now: number) {
   const elapsed = Math.max(0, (now - last) / 1000); last = now;
   gamepad.poll(); gamepadPanel.update(now);
+  aircraftPanel.updateInput(gamepad.active ? gamepad.output : null);
   const paused = fieldPanel.dialog.open || welcomePanel.dialog.open;
+  audio.setPaused(paused);
   if (paused) clock.reset();
   let alpha = paused ? 1 : clock.advance(elapsed, dt => {
     if (sim.state.crashed) return;
@@ -134,12 +149,15 @@ function frame(now: number) {
       input.roll = input.pitch = input.yaw = input.collective = 0; input.motor = false;
     } else controls.update(dt);
     capturePose(); sim.step(dt, input);
+    audio.observeFlight(sim.state, sim.params, dt);
   });
   if (sim.state.crashed) {
     resetFlight(gamepadPanel.dialog.open ? false : gamepad.output.motor ?? true); alpha = 1;
   }
   controls.paint(); world.render(sim.state, previous, alpha, elapsed);
-  if (now - uiLast > 100) { updateReadouts(); uiLast = now; }
+  audio.render(sim.state, sim.params, { position: world.helicopter.position, attitude: world.helicopter.quaternion },
+    { position: world.camera.position, attitude: world.camera.quaternion });
+  if (now - uiLast > 100) { updateReadouts(); soundPanel.updateStatus(); uiLast = now; }
   requestAnimationFrame(frame);
 }
 updateReadouts(); requestAnimationFrame(frame);

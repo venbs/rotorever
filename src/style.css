@@ -34,11 +34,59 @@ dialog{width:min(720px,calc(100% - 36px));max-height:calc(100dvh - 70px);margin:
 .piro-setting{margin-top:25px;padding-top:22px;border-top:1px solid var(--line)}.piro-setting .section-caption{margin-bottom:18px}.piro-setting .section-caption>span{font-family:inherit;font-size:12px;letter-spacing:0}.piro-setting .setting-note{margin-top:16px}.piro-toggle{display:flex;align-items:center;gap:10px;min-height:48px;color:#e3ebf7}
 /* Field downloads and first-run guide share the existing settings frame. */
 #field-dialog,#welcome-dialog{width:min(650px,calc(100% - 24px));max-height:calc(100dvh - 24px);overflow:hidden}
+#field-dialog{width:min(1000px,calc(100% - 24px))}
 #field-dialog[open],#welcome-dialog[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto}
 .field-body,.welcome-body{padding:0 30px 24px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .field-intro,.welcome-lead{margin:0 0 22px;font-size:12px;line-height:1.9}.welcome-lead b{color:#c9dff5;font:11px var(--mono)}
-.field-list{display:grid;gap:12px}.field-card{padding:18px;border:1px solid #7b9cb02b;background:#0a111b50;transition:border-color .15s}.field-card.is-active{border-color:#64abed77;background:#366da012}
-.field-card-heading{display:flex;align-items:flex-start;gap:12px}.field-number{font:11px var(--mono);color:#6c97bf;padding-top:2px}.field-card h3{font-size:13px;line-height:1.5}.field-card-heading p{margin:6px 0 0;font-size:10px;color:#8096ad}.field-tag{margin-left:auto;padding:4px 6px;border:1px solid #6a98b83d;white-space:nowrap;font-size:9px;color:#99b5cc}
-.field-card-bottom{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:17px 0 0}.field-size{font:10px var(--mono);color:#8ea8bf}.field-state{font-size:10px!important;margin:5px 0 0;line-height:1.6!important;color:#83adcf!important}.field-state.error{color:#eab69d!important}.field-action{flex-shrink:0;min-width:100px;padding:10px 12px;font-size:11px}.field-action:disabled{opacity:.65}.field-card.is-active .field-action{color:#87c9a8;border-color:#70bb962e}.field-card progress{display:block;width:100%;height:3px;margin-top:14px;accent-color:#70b8ff}.field-storage-note{font-size:10px!important;margin:17px 0 0;color:#70869d!important}
+.field-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.field-card{position:relative;display:flex;flex-direction:column;min-width:0;border:1px solid #7b9cb02b;border-radius:3px;overflow:hidden;background:#0a111b70;transition:border-color .15s}.field-card.is-active{border-color:#64abed99;background:#366da012}
+.field-thumbnail{position:relative;aspect-ratio:8/5;flex-shrink:0;overflow:hidden;background:#182634}.field-thumbnail img{position:relative;display:block;width:100%;height:100%;object-fit:cover}.field-thumbnail-fallback{position:absolute;inset:0;display:grid;place-items:center;color:#8096ad;font-size:11px}
+.field-number,.field-tag{position:absolute;top:12px;padding:5px 7px;background:#0b1424c9;border:1px solid #c7dcf02e;border-radius:2px;color:#e1edfa}.field-number{left:12px;font:10px var(--mono)}.field-tag{right:12px;white-space:nowrap;font-size:10px}
+.field-card-content{display:flex;flex:1;flex-direction:column;padding:18px}.field-card h3{font-size:14px;line-height:1.5}.field-card-heading p{margin:7px 0 0;font-size:11px;line-height:1.7;color:#91a4b9}
+.field-card-bottom{margin-top:auto;padding-top:20px}.field-size{font:10px var(--mono);color:#8ea8bf}.field-state{font-size:10px!important;margin:7px 0 0;min-height:3.2em;line-height:1.6!important;color:#83adcf!important;overflow-wrap:anywhere}.field-state.error{color:#eab69d!important}.field-action{width:100%;margin-top:12px;padding:11px 12px;font-size:11px}.field-action:disabled{opacity:.65}.field-card.is-active .field-action{color:#a4e2c0;border-color:#70bb9650;background:#548f7020}.field-card progress{position:absolute;bottom:0;left:0;display:block;width:100%;height:3px;margin:0;border:0;accent-color:#70b8ff}.field-storage-note{font-size:10px!important;margin:17px 0 0;color:#70869d!important}
 .welcome-steps{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:18px}.welcome-steps li{display:flex;gap:16px;align-items:flex-start}.welcome-steps li>span{font:10px var(--mono);color:#79aff0;padding:7px 8px;border:1px solid #71a4d337;background:#32639214}.welcome-steps strong{font-size:12px;font-weight:500}.welcome-steps p{font-size:11px;margin:4px 0 0;line-height:1.6}.release-notes{border-top:1px solid var(--line);padding-top:20px}.release-notes>div{display:flex;justify-content:space-between;align-items:center}.release-notes>div>span{color:#84afd6;font:10px var(--mono)}.release-notes ul{padding-left:16px;margin:12px 0 0;color:#98acc0;font-size:11px;line-height:1.9}.release-notes li::marker{color:#5f98c9}
-@media(max-width:640px){.field-body,.welcome-body{padding:0 20px 20px}.field-card{padding:14px}.field-card-heading{gap:9px}.field-card h3{font-size:12px}.field-card-heading p{font-size:9px}.field-tag{font-size:8px;padding:3px 5px}.field-number{font-size:10px}.field-card-bottom{gap:8px}.field-action{min-width:90px;padding:10px}.field-size,.field-state{font-size:9px!important}.welcome-steps{gap:16px}.field-intro,.welcome-lead{font-size:11px;margin-bottom:20px}}
+@media(max-width:850px){.field-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.field-body,.welcome-body{padding:0 20px 20px}.field-card-content{padding:16px}.welcome-steps{gap:16px}.field-intro,.welcome-lead{font-size:11px;margin-bottom:20px}}
+@media(max-width:540px){.field-list{grid-template-columns:minmax(0,1fr)}.field-state{min-height:1.6em}}
+
+/* Rates: parameters on the left, matching controller curves on the right. */
+#aircraft-dialog[data-active-tab=rates]{width:min(940px,calc(100% - 36px))}
+.rates-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:26px;align-items:start}
+.rates-parameters .section-caption{margin-bottom:22px}.rates-parameters .setting-grid{grid-template-columns:minmax(0,1fr);gap:16px}.rates-parameters .field-value input{height:44px}.rates-parameters .setting-note{margin-top:18px}
+.rates-curves{min-width:0;padding-left:26px;border-left:1px solid var(--line)}
+.rate-chart-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.rate-chart-heading h3{font-size:12px;color:#d8e5f4}.rate-chart-heading>span{font-size:10px;color:#758da9}
+.rate-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.rate-legend>div{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px}.rate-legend span{display:flex;align-items:center;gap:7px;width:100%;font-size:10px;color:#9bacc0;margin-bottom:2px}.rate-legend i{width:7px;height:7px;border:1.5px solid var(--curve-color);border-radius:50%;flex-shrink:0}.rate-legend .curve-pitch i{border-radius:0;transform:rotate(45deg)}.rate-legend .rate-stick{font:9px var(--mono);color:#7289a3;margin-top:2px}.rate-legend output{font:18px var(--mono);color:var(--curve-color);font-variant-numeric:tabular-nums}.rate-legend small{font:9px var(--mono);color:#768ba3}
+.curve-cyclic,.curve-roll,.curve-pitch{--curve-color:#65b2ff}.curve-yaw{--curve-color:#eef4fc}.curve-collective{--curve-color:#84d8ef}
+.rate-plot{display:block;width:100%;height:auto;overflow:visible;cursor:crosshair;touch-action:pan-y;user-select:none;background:#070d152b;border:1px solid #83a7cd15;border-radius:2px}
+.curve-grid line{stroke:#91b4d517;stroke-width:1;vector-effect:non-scaling-stroke}.curve-grid .curve-zero{stroke:#91b4d545}.curve-grid text{fill:#7891ac;font:11px var(--mono)}.curve-grid .curve-axis-title{fill:#a8bdd5;font-family:inherit;font-size:11px}
+.curve-line{stroke:var(--curve-color);stroke-width:2;fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round}.curve-line.curve-yaw{stroke-dasharray:5 4}.curve-probe line{stroke:var(--curve-color);opacity:.3;stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}.curve-probe [data-dot]{fill:#10151d;stroke:var(--curve-color);stroke-width:2;vector-effect:non-scaling-stroke}
+.rate-input-source{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;font-size:10px;color:#7289a3}.rate-input-source>span:first-child{color:#a9bfd7}.rates-curves[data-input-source=gamepad] #rate-input-source{color:var(--blue)}.rates-curves[data-input-source=gamepad] .rate-plot{cursor:default}
+.rate-preview-error{font-size:10px!important;line-height:1.6!important;margin:8px 0 0;color:#7e97b1!important}.rate-preview-error{color:#e8bba4!important}.rates-curves.is-invalid .rate-plot{opacity:.2;cursor:default}.rates-curves.is-invalid .rate-legend output{color:#78889d}
+@media(min-width:701px){#aircraft-dialog[data-active-tab=rates]{height:min(780px,calc(100dvh - 32px));max-height:calc(100dvh - 32px)}#aircraft-dialog[data-active-tab=rates] .dialog-head{padding-top:18px;padding-bottom:18px}#aircraft-dialog[data-active-tab=rates] .settings-content{padding-top:20px;padding-bottom:20px}}
+@media(max-width:800px){.rates-layout{grid-template-columns:180px minmax(0,1fr);gap:22px}.rates-curves{padding-left:22px}.rate-chart-heading>span{font-size:9px}.rate-legend output{font-size:16px}}
+@media(max-width:700px){#aircraft-dialog[data-active-tab=rates]{width:calc(100% - 24px)}.rates-layout{grid-template-columns:minmax(0,1fr);gap:26px}.rates-parameters .setting-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 14px}.rates-parameters .section-caption{margin-bottom:18px}.rates-parameters .setting-note{margin-top:16px}.rates-parameters .setting-note br{display:none}.rates-curves{padding:24px 0 0;border-left:0;border-top:1px solid var(--line)}.curve-grid text,.curve-grid .curve-axis-title{font-size:16px}.rate-legend output{font-size:15px}.rate-legend small{width:100%;font-size:8px}.rate-legend{gap:6px}.rate-legend>div{gap:3px}.rate-legend span{gap:5px}.rate-legend .rate-stick{font-size:8px}}
+@media(max-height:600px) and (min-width:701px){#aircraft-dialog[data-active-tab=rates] .dialog-head{padding-top:14px;padding-bottom:14px}#aircraft-dialog[data-active-tab=rates] .setting-tabs button{padding-top:10px;padding-bottom:10px}#aircraft-dialog[data-active-tab=rates] .settings-content{padding-top:18px;padding-bottom:18px}#aircraft-dialog[data-active-tab=rates] .dialog-footer{padding-top:12px;padding-bottom:12px}}
+
+@media(max-width:380px){.rate-legend{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.rate-legend small{width:auto}}
+
+/* Flight sound follows the existing settings frame and applies while the aircraft flies. */
+#sound-dialog{width:min(620px,calc(100% - 24px));max-height:calc(100dvh - 36px);overflow:hidden}
+#sound-dialog[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.sound-body{overflow-y:auto;overscroll-behavior:contain;padding:0 30px 26px;scrollbar-width:thin}
+.sound-power{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:24px;font-size:12px}
+.sound-power label,.sound-check,.sound-channel>label{display:flex;align-items:center;gap:9px}
+.sound-range{display:block;margin:18px 0;color:#bdcde0;font-size:12px;min-width:0}
+.sound-range>span{display:flex;justify-content:space-between;gap:14px;align-items:center}
+.sound-range output,.sound-channel>output{font:11px var(--mono);color:var(--blue);white-space:nowrap}
+.sound-range input[type=range],.sound-channel input[type=range]{display:block;width:100%;height:24px;margin:10px 0 0;accent-color:var(--blue);cursor:pointer}
+.sound-channels{margin:22px 0;padding:12px 0 20px;border-block:1px solid var(--line)}
+.sound-channel{display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 14px;margin-top:15px;font-size:12px;color:#bdcde0}
+.sound-channel input[type=range]{grid-column:1/-1}
+.sound-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}
+.sound-details{margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.sound-details summary{font-size:12px;color:#a7bfd9;cursor:pointer}
+.sound-check{font-size:12px;color:#bdcde0;margin:24px 0 10px}
+.sound-select{display:flex;flex-direction:column;gap:10px;font-size:12px;color:#bdcde0;margin:18px 0}
+.sound-body .setting-note{margin-top:12px}
+@media(max-width:640px){.sound-body{padding:0 20px 22px}.sound-grid{gap:0 18px}.sound-power{gap:12px}.sound-power label{font-size:11px}}
+@media(max-width:480px){.sound-grid{grid-template-columns:minmax(0,1fr)}}
